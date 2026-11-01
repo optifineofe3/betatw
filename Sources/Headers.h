@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+#import <Intents/Intents.h>
 
 @interface WAMultiSendMediaItemQuality : NSObject
 + (id)fullQuality;
@@ -87,4 +88,16 @@
 @interface _TtC26WAContextualizePermissions48ContextualizePermissionsBasePrimerViewController : UIViewController
 - (void)startLoadingState;
 - (void)endLoadingStateWithCompletion:(id)arg1;
+@end
+
+@interface WAFakeVocabulary : NSObject
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2;
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2;
+- (void)removeAllVocabularyStrings;
+@end
+
+@interface _INVocabulary : NSObject
++ (id)sharedVocabulary;
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2;
+- (void)removeAllVocabularyStrings;
 @end

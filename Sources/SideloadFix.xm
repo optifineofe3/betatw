@@ -3,6 +3,7 @@
 #import <UserNotifications/UserNotifications.h>
 #import <Contacts/Contacts.h>
 #import <Security/Security.h>
+#import <Intents/Intents.h>
 #import <objc/runtime.h>
 #import "Headers.h"
 #import "fishhook.h"
@@ -14,6 +15,7 @@ static OSStatus (*orig_SecItemDelete)(CFDictionaryRef);
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef, CFTypeRef*);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef, CFDictionaryRef);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef, CFTypeRef*);
+static CFTypeRef (*orig_SecTaskCopyValueForEntitlement)(void *task, CFStringRef entitlement, CFErrorRef *error) = NULL;
 
 static CFDictionaryRef sanitizedQuery(CFDictionaryRef query) {
     if (!query) return NULL;
@@ -60,6 +62,18 @@ static OSStatus hook_SecItemDelete(CFDictionaryRef query) {
     return status;
 }
 
+static CFTypeRef hook_SecTaskCopyValueForEntitlement(void *task, CFStringRef entitlement, CFErrorRef *error) {
+    if (entitlement) {
+        if (CFEqual(entitlement, CFSTR("com.apple.developer.siri"))) {
+            return (CFTypeRef)CFRetain(kCFBooleanTrue);
+        }
+    }
+    if (orig_SecTaskCopyValueForEntitlement) {
+        return orig_SecTaskCopyValueForEntitlement(task, entitlement, error);
+    }
+    return NULL;
+}
+
 static void createDirectoryIfNotExists(NSURL *URL) {
     if (!URL) return;
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -88,6 +102,106 @@ static void loadKeychainAccessGroup() {
         CFRelease(result);
     }
 }
+
+#pragma mark - Mock Siri Vocabulary
+
+@implementation WAFakeVocabulary
+
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {}
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {}
+- (void)removeAllVocabularyStrings {}
+
+- (BOOL)respondsToSelector:(SEL)aSelector {
+    return YES;
+}
+
+- (BOOL)isKindOfClass:(Class)aClass {
+    if (aClass == [INVocabulary class] || [NSStringFromClass(aClass) containsString:@"Vocabulary"]) {
+        return YES;
+    }
+    return [super isKindOfClass:aClass];
+}
+
+- (id)forwardingTargetForSelector:(SEL)aSelector {
+    return nil;
+}
+
+- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector {
+    NSMethodSignature *sig = [super methodSignatureForSelector:aSelector];
+    if (!sig) {
+        sig = [NSMethodSignature signatureWithObjCTypes:"@@:"];
+    }
+    return sig;
+}
+
+- (void)forwardInvocation:(NSInvocation *)anInvocation {
+    void *nullPtr = NULL;
+    if (anInvocation.methodSignature.methodReturnLength > 0) {
+        [anInvocation setReturnValue:&nullPtr];
+    }
+}
+
+@end
+
+#pragma mark - Siri & Intents Entitlement Fix (LiveContainer / Sideloading)
+
+%hook INVocabulary
+
++ (id)sharedVocabulary {
+    static WAFakeVocabulary *fake = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        fake = [[WAFakeVocabulary alloc] init];
+    });
+    return fake;
+}
+
+- (id)init {
+    return (id)[[WAFakeVocabulary alloc] init];
+}
+
+- (void)setVocabularyStrings:(id)arg1 ofType:(INVocabularyStringType)arg2 {
+    // no-op: prevents Siri entitlement check exception
+}
+
+%new
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {
+    // no-op
+}
+
+- (void)removeAllVocabularyStrings {
+    // no-op
+}
+
+%end
+
+%hook INPreferences
+
++ (INSiriAuthorizationStatus)siriAuthorizationStatus {
+    return INSiriAuthorizationStatusAuthorized;
+}
+
++ (void)requestSiriAuthorization:(void (^)(INSiriAuthorizationStatus status))handler {
+    if (handler) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            handler(INSiriAuthorizationStatusAuthorized);
+        });
+    }
+}
+
+%end
+
+%hook INInteraction
+
+- (void)donateInteractionWithCompletion:(void (^)(NSError *error))completion {
+    if (completion) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion(nil);
+        });
+    }
+}
+
+%end
 
 #pragma mark - Notification Permissions Fix for LiveContainer / Sideloading
 
@@ -217,8 +331,53 @@ static void loadKeychainAccessGroup() {
                 {"SecItemCopyMatching", (void*)hook_SecItemCopyMatching, (void**)&orig_SecItemCopyMatching},
                 {"SecItemUpdate", (void*)hook_SecItemUpdate, (void**)&orig_SecItemUpdate},
                 {"SecItemDelete", (void*)hook_SecItemDelete, (void**)&orig_SecItemDelete},
+                {"SecTaskCopyValueForEntitlement", (void*)hook_SecTaskCopyValueForEntitlement, (void**)&orig_SecTaskCopyValueForEntitlement},
             },
-            4
+            5
         );
+
+        // Dynamic hook for private _INVocabulary if present
+        Class _inVocabCls = objc_getClass("_INVocabulary");
+        if (_inVocabCls) {
+            Method mShared = class_getClassMethod(_inVocabCls, @selector(sharedVocabulary));
+            if (mShared) {
+                method_setImplementation(mShared, imp_implementationWithBlock(^{
+                    static WAFakeVocabulary *fake = nil;
+                    static dispatch_once_t onceToken;
+                    dispatch_once(&onceToken, ^{
+                        fake = [[WAFakeVocabulary alloc] init];
+                    });
+                    return fake;
+                }));
+            }
+            Method mInit = class_getInstanceMethod(_inVocabCls, @selector(init));
+            if (mInit) {
+                method_setImplementation(mInit, imp_implementationWithBlock(^(id self) {
+                    return [[WAFakeVocabulary alloc] init];
+                }));
+            }
+        }
+
+        // Swizzle WhatsApp internal methods that donate Siri vocabulary
+        unsigned int classCount = 0;
+        Class *classes = objc_copyClassList(&classCount);
+        if (classes) {
+            SEL sel1 = sel_registerName("__registerSiriVocabulary");
+            SEL sel2 = sel_registerName("registerSiriVocabularyIfNeeded");
+            IMP noopImp = imp_implementationWithBlock(^(id self) {});
+
+            for (unsigned int i = 0; i < classCount; i++) {
+                Class cls = classes[i];
+                Method m1 = class_getInstanceMethod(cls, sel1);
+                if (m1) {
+                    method_setImplementation(m1, noopImp);
+                }
+                Method m2 = class_getInstanceMethod(cls, sel2);
+                if (m2) {
+                    method_setImplementation(m2, noopImp);
+                }
+            }
+            free(classes);
+        }
     }
 }
