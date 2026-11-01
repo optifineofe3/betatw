@@ -1,6 +1,8 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <Intents/Intents.h>
+#import <Contacts/Contacts.h>
+#import <Security/Security.h>
 #import "Logger.h"
 
 @interface WAMultiSendMediaItemQuality : NSObject
@@ -91,8 +93,16 @@
 - (void)endLoadingStateWithCompletion:(id)arg1;
 @end
 
+@interface WAFakeVocabulary : NSObject
++ (instancetype)sharedInstance;
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2;
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2;
+- (void)removeAllVocabularyStrings;
+@end
+
 @interface _INVocabulary : NSObject
 + (id)sharedVocabulary;
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2;
 - (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2;
 - (void)removeAllVocabularyStrings;
 @end
@@ -104,11 +114,14 @@
 @interface DCDevice : NSObject
 + (instancetype)currentDevice;
 - (BOOL)isSupported;
+- (void)generateTokenWithCompletionHandler:(void (^)(NSData *token, NSError *error))completionHandler;
 @end
 
 @interface DCAppAttestService : NSObject
 + (instancetype)sharedService;
 - (BOOL)isSupported;
+- (void)generateKeyWithCompletionHandler:(void (^)(NSString *keyId, NSError *error))completionHandler;
+- (void)attestKey:(NSString *)keyId clientDataHash:(NSData *)clientDataHash completionHandler:(void (^)(NSData *attestationObject, NSError *error))completionHandler;
 @end
 
 @interface CKContainer : NSObject
@@ -120,4 +133,11 @@
 
 @interface CKEntitlements : NSObject
 - (id)initWithEntitlementsDict:(NSDictionary *)entitlements;
+@end
+
+@interface WAProfileViewController : UIViewController
+- (void)savePushNameIfValid;
+@end
+
+@interface WAVerificationProfileController : UIViewController
 @end

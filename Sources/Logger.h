@@ -6,6 +6,7 @@ extern "C" {
 
 void tweakLog(NSString *format, ...) NS_FORMAT_FUNCTION(1, 2);
 void installCrashHandler(void);
+const char *getLogFilePathCString(void);
 
 #ifdef __cplusplus
 }

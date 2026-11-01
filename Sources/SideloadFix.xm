@@ -14,43 +14,51 @@
 static NSURL *fakeGroupContainerURL = nil;
 static NSString *keychainAccessGroup = nil;
 
+#pragma mark - 1. Keychain Access Group Sanitization (sparkle-ig-main pattern)
+
 static OSStatus (*orig_SecItemDelete)(CFDictionaryRef);
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef, CFTypeRef*);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef, CFDictionaryRef);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef, CFTypeRef*);
 
-static CFDictionaryRef sanitizedQuery(CFDictionaryRef query) {
+static CFDictionaryRef sanitizedQuery(CFDictionaryRef query, BOOL injectWhenMissing) {
     if (!query) return NULL;
-    if (!CFDictionaryContainsKey(query, kSecAttrAccessGroup)) {
+    NSDictionary *dict = (__bridge NSDictionary *)query;
+    if (![dict isKindOfClass:[NSDictionary class]]) {
         return (CFDictionaryRef)CFRetain(query);
     }
 
-    CFMutableDictionaryRef mutableQuery = CFDictionaryCreateMutableCopy(kCFAllocatorDefault, 0, query);
-    if (keychainAccessGroup && keychainAccessGroup.length > 0) {
-        CFDictionarySetValue(mutableQuery, kSecAttrAccessGroup, (__bridge void*)keychainAccessGroup);
-    } else {
-        CFDictionaryRemoveValue(mutableQuery, kSecAttrAccessGroup);
+    BOOL hasGroup = dict[(__bridge NSString *)kSecAttrAccessGroup] != nil;
+    if (!hasGroup && !injectWhenMissing) {
+        return (CFDictionaryRef)CFRetain(query);
     }
-    return mutableQuery;
+
+    NSMutableDictionary *mutableQuery = [dict mutableCopy];
+    if (keychainAccessGroup && keychainAccessGroup.length > 0) {
+        mutableQuery[(__bridge NSString *)kSecAttrAccessGroup] = keychainAccessGroup;
+    } else {
+        [mutableQuery removeObjectForKey:(__bridge NSString *)kSecAttrAccessGroup];
+    }
+    return (CFDictionaryRef)CFBridgingRetain(mutableQuery);
 }
 
 static OSStatus hook_SecItemAdd(CFDictionaryRef attributes, CFTypeRef* result) {
-    CFDictionaryRef cleanAttrs = sanitizedQuery(attributes);
+    CFDictionaryRef cleanAttrs = sanitizedQuery(attributes, YES);
     OSStatus status = orig_SecItemAdd(cleanAttrs ? cleanAttrs : attributes, result);
     if (cleanAttrs) CFRelease(cleanAttrs);
     return status;
 }
 
 static OSStatus hook_SecItemCopyMatching(CFDictionaryRef query, CFTypeRef* result) {
-    CFDictionaryRef cleanQuery = sanitizedQuery(query);
+    CFDictionaryRef cleanQuery = sanitizedQuery(query, YES);
     OSStatus status = orig_SecItemCopyMatching(cleanQuery ? cleanQuery : query, result);
     if (cleanQuery) CFRelease(cleanQuery);
     return status;
 }
 
 static OSStatus hook_SecItemUpdate(CFDictionaryRef query, CFDictionaryRef attributesToUpdate) {
-    CFDictionaryRef cleanQuery = sanitizedQuery(query);
-    CFDictionaryRef cleanAttrs = sanitizedQuery(attributesToUpdate);
+    CFDictionaryRef cleanQuery = sanitizedQuery(query, YES);
+    CFDictionaryRef cleanAttrs = sanitizedQuery(attributesToUpdate, NO);
     OSStatus status = orig_SecItemUpdate(cleanQuery ? cleanQuery : query, cleanAttrs ? cleanAttrs : attributesToUpdate);
     if (cleanQuery) CFRelease(cleanQuery);
     if (cleanAttrs) CFRelease(cleanAttrs);
@@ -58,7 +66,7 @@ static OSStatus hook_SecItemUpdate(CFDictionaryRef query, CFDictionaryRef attrib
 }
 
 static OSStatus hook_SecItemDelete(CFDictionaryRef query) {
-    CFDictionaryRef cleanQuery = sanitizedQuery(query);
+    CFDictionaryRef cleanQuery = sanitizedQuery(query, YES);
     OSStatus status = orig_SecItemDelete(cleanQuery ? cleanQuery : query);
     if (cleanQuery) CFRelease(cleanQuery);
     return status;
@@ -94,7 +102,38 @@ static void loadKeychainAccessGroup(void) {
     }
 }
 
-#pragma mark - CloudKit Sideload Fix (Suppresses CKException in LiveContainer)
+#pragma mark - 2. SecTask Entitlement Check Spoofing (Siri & CloudKit)
+
+typedef struct __SecTask *SecTaskRef;
+
+static CFTypeRef (*orig_SecTaskCopyValueForEntitlement)(SecTaskRef, CFStringRef, CFErrorRef *);
+static CFDictionaryRef (*orig_SecTaskCopyValuesForEntitlements)(SecTaskRef, CFArrayRef, CFErrorRef *);
+
+static CFTypeRef hook_SecTaskCopyValueForEntitlement(SecTaskRef task, CFStringRef entitlement, CFErrorRef *error) {
+    if (entitlement) {
+        NSString *ent = (__bridge NSString *)entitlement;
+        if ([ent isEqualToString:@"com.apple.developer.siri"]) {
+            WATweakLog(@"SecTaskCopyValueForEntitlement: spoofing com.apple.developer.siri -> YES");
+            return (CFTypeRef)CFRetain(kCFBooleanTrue);
+        }
+        if ([ent isEqualToString:@"com.apple.developer.icloud-container-environment"] ||
+            [ent isEqualToString:@"com.apple.developer.icloud-services"]) {
+            return NULL;
+        }
+    }
+    return orig_SecTaskCopyValueForEntitlement ? orig_SecTaskCopyValueForEntitlement(task, entitlement, error) : NULL;
+}
+
+static CFDictionaryRef hook_SecTaskCopyValuesForEntitlements(SecTaskRef task, CFArrayRef entitlements, CFErrorRef *error) {
+    CFDictionaryRef origDict = orig_SecTaskCopyValuesForEntitlements ? orig_SecTaskCopyValuesForEntitlements(task, entitlements, error) : NULL;
+    NSMutableDictionary *mut = origDict ? [(__bridge NSDictionary *)origDict mutableCopy] : [NSMutableDictionary dictionary];
+    mut[@"com.apple.developer.siri"] = @YES;
+    [mut removeObjectForKey:@"com.apple.developer.icloud-container-environment"];
+    [mut removeObjectForKey:@"com.apple.developer.icloud-services"];
+    return (CFDictionaryRef)CFBridgingRetain(mut);
+}
+
+#pragma mark - 3. CloudKit Sideload Fix (Suppresses CKException in LiveContainer)
 
 %hook CKContainer
 
@@ -127,25 +166,96 @@ static void loadKeychainAccessGroup(void) {
 
 %end
 
-#pragma mark - DeviceCheck & App Attest Sideload Fix (Bypasses Attestation Checks)
+#pragma mark - 4. DeviceCheck & App Attest Sideload Fix
 
 %hook DCDevice
 
++ (instancetype)currentDevice {
+    return %orig;
+}
+
 - (BOOL)isSupported {
     return NO;
+}
+
+- (void)generateTokenWithCompletionHandler:(void (^)(NSData *token, NSError *error))completionHandler {
+    WATweakLog(@"DCDevice generateTokenWithCompletionHandler -> returning unsupported error");
+    if (completionHandler) {
+        NSError *err = [NSError errorWithDomain:@"com.apple.devicecheck.error" code:1 userInfo:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completionHandler(nil, err);
+        });
+    }
 }
 
 %end
 
 %hook DCAppAttestService
 
++ (instancetype)sharedService {
+    return %orig;
+}
+
 - (BOOL)isSupported {
     return NO;
 }
 
+- (void)generateKeyWithCompletionHandler:(void (^)(NSString *keyId, NSError *error))completionHandler {
+    WATweakLog(@"DCAppAttestService generateKeyWithCompletionHandler -> returning unsupported error");
+    if (completionHandler) {
+        NSError *err = [NSError errorWithDomain:@"com.apple.devicecheck.error" code:1 userInfo:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completionHandler(nil, err);
+        });
+    }
+}
+
+- (void)attestKey:(NSString *)keyId clientDataHash:(NSData *)clientDataHash completionHandler:(void (^)(NSData *attestationObject, NSError *error))completionHandler {
+    WATweakLog(@"DCAppAttestService attestKey -> returning unsupported error");
+    if (completionHandler) {
+        NSError *err = [NSError errorWithDomain:@"com.apple.devicecheck.error" code:1 userInfo:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completionHandler(nil, err);
+        });
+    }
+}
+
 %end
 
-#pragma mark - Siri & Intents Entitlement Fix (LiveContainer / Sideloading)
+#pragma mark - 5. Siri & Intents Entitlement Fix (Full Safe Mock)
+
+@implementation WAFakeVocabulary
+
++ (instancetype)sharedInstance {
+    static WAFakeVocabulary *instance = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        instance = [[WAFakeVocabulary alloc] init];
+    });
+    return instance;
+}
+
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"[Siri] Fake setVocabulary:ofType: called -> safely ignored");
+}
+
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"[Siri] Fake setVocabularyStrings:ofType: called -> safely ignored");
+}
+
+- (void)removeAllVocabularyStrings {
+    WATweakLog(@"[Siri] Fake removeAllVocabularyStrings called -> safely ignored");
+}
+
+- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector {
+    return [NSMethodSignature signatureWithObjCTypes:"v@:@q"];
+}
+
+- (void)forwardInvocation:(NSInvocation *)anInvocation {
+    // Safe no-op forwarder
+}
+
+@end
 
 %hook INPreferences
 
@@ -178,24 +288,23 @@ static void loadKeychainAccessGroup(void) {
 %hook INVocabulary
 
 + (id)sharedVocabulary {
-    static INVocabulary *fake = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        fake = [[%c(INVocabulary) alloc] init];
-    });
-    return fake;
+    return [WAFakeVocabulary sharedInstance];
 }
 
 - (instancetype)init {
-    return self;
+    return (id)[WAFakeVocabulary sharedInstance];
+}
+
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"[Siri] INVocabulary setVocabulary:ofType: -> ignored");
 }
 
 - (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
-    WATweakLog(@"Intercepted setVocabularyStrings:ofType: -> ignored");
+    WATweakLog(@"[Siri] INVocabulary setVocabularyStrings:ofType: -> ignored");
 }
 
 - (void)removeAllVocabularyStrings {
-    WATweakLog(@"Intercepted removeAllVocabularyStrings -> ignored");
+    WATweakLog(@"[Siri] INVocabulary removeAllVocabularyStrings -> ignored");
 }
 
 %end
@@ -203,22 +312,23 @@ static void loadKeychainAccessGroup(void) {
 %hook _INVocabulary
 
 + (id)sharedVocabulary {
-    static _INVocabulary *fake = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        fake = [[%c(_INVocabulary) alloc] init];
-    });
-    return fake;
+    return [WAFakeVocabulary sharedInstance];
 }
 
 - (instancetype)init {
-    return self;
+    return (id)[WAFakeVocabulary sharedInstance];
+}
+
+- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"[Siri] _INVocabulary setVocabulary:ofType: -> ignored");
 }
 
 - (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"[Siri] _INVocabulary setVocabularyStrings:ofType: -> ignored");
 }
 
 - (void)removeAllVocabularyStrings {
+    WATweakLog(@"[Siri] _INVocabulary removeAllVocabularyStrings -> ignored");
 }
 
 %end
@@ -235,7 +345,7 @@ static void loadKeychainAccessGroup(void) {
 
 %end
 
-#pragma mark - Bundle Identifier Spoofing for Anti-Tamper
+#pragma mark - 6. Bundle Identifier Spoofing for Anti-Tamper
 
 %hook NSBundle
 
@@ -263,7 +373,39 @@ static void loadKeychainAccessGroup(void) {
 
 %end
 
-#pragma mark - UI Flow Logging
+#pragma mark - 7. Contacts Authorization & Prefill Protection
+
+%hook CNContactStore
+
++ (CNAuthorizationStatus)authorizationStatusForEntityType:(CNEntityType)entityType {
+    WATweakLog(@"CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety");
+    return CNAuthorizationStatusDenied;
+}
+
+- (void)requestAccessForEntityType:(CNEntityType)entityType completionHandler:(void (^)(BOOL granted, NSError *error))completionHandler {
+    WATweakLog(@"CNContactStore requestAccessForEntityType -> safely reporting NO to prevent AddressBook sandbox crash");
+    if (completionHandler) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completionHandler(NO, nil);
+        });
+    }
+}
+
+- (id)unifiedMeContactWithKeysToFetch:(id)keys error:(NSError **)error {
+    WATweakLog(@"CNContactStore unifiedMeContactWithKeysToFetch -> nil (sandbox safe)");
+    if (error) *error = nil;
+    return nil;
+}
+
+- (id)unifiedContactsMatchingPredicate:(id)predicate keysToFetch:(id)keys error:(NSError **)error {
+    WATweakLog(@"CNContactStore unifiedContactsMatchingPredicate -> empty (sandbox safe)");
+    if (error) *error = nil;
+    return @[];
+}
+
+%end
+
+#pragma mark - 8. Profile Setup Safeguards & UI Flow Logging
 
 %hook UIViewController
 
@@ -279,7 +421,35 @@ static void loadKeychainAccessGroup(void) {
 
 %end
 
-#pragma mark - Notification Permissions Fix for LiveContainer / Sideloading
+%hook WAProfileViewController
+
+- (void)viewDidLoad {
+    %orig;
+    WATweakLog(@"[ProfileVC] viewDidLoad completed");
+}
+
+- (void)savePushNameIfValid {
+    WATweakLog(@"[ProfileVC] savePushNameIfValid called!");
+    @try {
+        %orig;
+        WATweakLog(@"[ProfileVC] savePushNameIfValid executed successfully!");
+    } @catch (NSException *ex) {
+        WATweakLog(@"[ProfileVC] EXCEPTION in savePushNameIfValid: %@ reason: %@", [ex name], [ex reason]);
+    }
+}
+
+%end
+
+%hook WAVerificationProfileController
+
+- (void)viewDidLoad {
+    %orig;
+    WATweakLog(@"[VerificationProfileController] viewDidLoad completed");
+}
+
+%end
+
+#pragma mark - 9. Notification Permissions Fix for LiveContainer
 
 %hook UNUserNotificationCenter
 
@@ -322,12 +492,11 @@ static void loadKeychainAccessGroup(void) {
 
 %end
 
-#pragma mark - WhatsApp Contextualize Permissions Primer Bypass
+#pragma mark - 10. WhatsApp Contextualize Permissions Primer Bypass
 
 %hook WAContextualizePermissionsHelper
 
 + (BOOL)isPermissionPrimerEnabledWithUserContext:(id)arg1 {
-    WATweakLog(@"WAContextualizePermissionsHelper isPermissionPrimerEnabled -> NO");
     return NO;
 }
 
@@ -354,22 +523,7 @@ static void loadKeychainAccessGroup(void) {
 
 %end
 
-#pragma mark - Contacts Authorization Fix for LiveContainer
-
-%hook CNContactStore
-
-- (void)requestAccessForEntityType:(CNEntityType)entityType completionHandler:(void (^)(BOOL granted, NSError *error))completionHandler {
-    WATweakLog(@"CNContactStore requestAccessForEntityType -> safely reporting NO to prevent AddressBook sandbox crash");
-    if (completionHandler) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            completionHandler(NO, nil);
-        });
-    }
-}
-
-%end
-
-#pragma mark - App Group Redirection (LiveContainer sandbox fix)
+#pragma mark - 11. App Group Redirection (LiveContainer sandbox fix)
 
 %hook NSFileManager
 
@@ -408,8 +562,10 @@ static void loadKeychainAccessGroup(void) {
                 {"SecItemCopyMatching", (void*)hook_SecItemCopyMatching, (void**)&orig_SecItemCopyMatching},
                 {"SecItemUpdate", (void*)hook_SecItemUpdate, (void**)&orig_SecItemUpdate},
                 {"SecItemDelete", (void*)hook_SecItemDelete, (void**)&orig_SecItemDelete},
+                {"SecTaskCopyValueForEntitlement", (void*)hook_SecTaskCopyValueForEntitlement, (void**)&orig_SecTaskCopyValueForEntitlement},
+                {"SecTaskCopyValuesForEntitlements", (void*)hook_SecTaskCopyValuesForEntitlements, (void**)&orig_SecTaskCopyValuesForEntitlements},
             },
-            4
+            6
         );
 
         %init;
