@@ -1,107 +1,54 @@
-2026-11-01 23:08:16.122 [WATweak] Crash handler installed (Exceptions + Signals + C++ terminate).
-2026-11-01 23:08:16.129 [WATweak] SideloadFix initializing in pid=59555
-2026-11-01 23:08:16.132 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
-2026-11-01 23:08:16.146 [WATweak] SideloadFix initialized and %init completed successfully.
-2026-11-01 23:08:16.367 [WATweak] [UI] viewDidLoad: UIViewController
-2026-11-01 23:08:16.374 [WATweak] [UI] viewDidLoad: WARootViewController
-2026-11-01 23:08:16.391 [WATweak] [UI] viewDidLoad: WAVerificationRegistrationController
-2026-11-01 23:08:16.403 [WATweak] [UI] viewDidAppear: WAVerificationRegistrationController
-2026-11-01 23:08:16.416 [WATweak] [UI] viewDidLoad: WAConsumerWelcomeViewController
-2026-11-01 23:08:16.454 [WATweak] [UI] viewDidAppear: WAConsumerWelcomeViewController
-2026-11-01 23:08:17.223 [WATweak] [UI] viewDidLoad: WAPhoneInputViewController
-2026-11-01 23:08:17.745 [WATweak] [UI] viewDidLoad: UIPredictionViewController
-2026-11-01 23:08:17.757 [WATweak] [UI] viewDidLoad: UICompatibilityInputViewController
-2026-11-01 23:08:17.761 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
-2026-11-01 23:08:17.762 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
-2026-11-01 23:08:17.785 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:08:17.785 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
-2026-11-01 23:08:17.788 [WATweak] [UI] viewDidAppear: WAPhoneInputViewController
-2026-11-01 23:08:17.791 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
-2026-11-01 23:08:17.797 [WATweak] [UI] viewDidLoad: UIInputWindowController
-2026-11-01 23:08:17.800 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:08:17.813 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:17.814 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:08:17.834 [WATweak] [UI] viewDidAppear: UIInputWindowController
-2026-11-01 23:08:17.834 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:17.834 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:17.835 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
-2026-11-01 23:08:17.835 [WATweak] [UI] viewDidAppear: UIPredictionViewController
-2026-11-01 23:08:17.835 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:08:17.835 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:08:27.255 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:08:28.726 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
-2026-11-01 23:08:28.735 [WATweak] [UI] viewDidLoad: UIAlertController
-2026-11-01 23:08:29.173 [WATweak] [UI] viewDidAppear: UIAlertController
-2026-11-01 23:08:29.925 [WATweak] [UI] viewDidLoad: WAPassInputViewController
-2026-11-01 23:08:29.945 [WATweak] [UI] viewDidAppear: WAPassInputViewController
-2026-11-01 23:08:29.960 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:08:29.964 [WATweak] [UI] viewDidLoad: UIInputWindowController
-2026-11-01 23:08:29.966 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:08:29.974 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:29.980 [WATweak] [UI] viewDidAppear: UIInputWindowController
-2026-11-01 23:08:29.981 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:08:29.981 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:08:31.481 [WATweak] [UI] viewDidLoad: UIInputWindowController
-2026-11-01 23:08:31.484 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:08:31.497 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:31.500 [WATweak] [UI] viewDidAppear: UIInputWindowController
-2026-11-01 23:08:31.500 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:31.501 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:31.501 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
-2026-11-01 23:08:31.501 [WATweak] [UI] viewDidAppear: UIPredictionViewController
-2026-11-01 23:08:31.501 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:08:31.877 [WATweak] [UI] viewDidAppear: STKPrewarmingViewController
-2026-11-01 23:08:35.280 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:08:39.214 [WATweak] [UI] viewDidLoad: WARegistrationProgressNavigationController
-2026-11-01 23:08:39.235 [WATweak] [UI] viewDidAppear: WARootViewController
-2026-11-01 23:08:39.241 [WATweak] [UI] viewDidLoad: WARestoreTransferSelectionViewController
-2026-11-01 23:08:39.274 [WATweak] [UI] viewDidAppear: WARegistrationProgressNavigationController
-2026-11-01 23:08:39.274 [WATweak] [UI] viewDidAppear: WARestoreTransferSelectionViewController
-2026-11-01 23:08:42.226 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
-2026-11-01 23:08:42.234 [WATweak] [UI] viewDidLoad: UIAlertController
-2026-11-01 23:08:42.669 [WATweak] [UI] viewDidAppear: UIAlertController
-2026-11-01 23:08:45.043 [WATweak] [UI] viewDidLoad: WAVerificationProfileController
-2026-11-01 23:08:45.071 [WATweak] [UI] viewDidAppear: WARootViewController
-2026-11-01 23:08:45.075 [WATweak] [UI] viewDidLoad: WAProfileViewController
-2026-11-01 23:08:45.099 [WATweak] [UI] viewDidAppear: WAVerificationProfileController
-2026-11-01 23:08:45.099 [WATweak] [UI] viewDidAppear: WAProfileViewController
-2026-11-01 23:08:45.125 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
-2026-11-01 23:08:45.127 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:08:45.135 [WATweak] [UI] viewDidLoad: UIInputWindowController
-2026-11-01 23:08:45.137 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:08:45.147 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:45.155 [WATweak] [UI] viewDidAppear: UIInputWindowController
-2026-11-01 23:08:45.155 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:45.155 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:08:45.155 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
-2026-11-01 23:08:45.155 [WATweak] [UI] viewDidAppear: UIPredictionViewController
-2026-11-01 23:08:45.156 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:09:40.933 [WATweak] Crash handler installed (Exceptions + Signals + C++ terminate).
-2026-11-01 23:09:40.934 [WATweak] SideloadFix initializing in pid=59569
-2026-11-01 23:09:40.934 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
-2026-11-01 23:09:40.945 [WATweak] SideloadFix initialized and %init completed successfully.
-2026-11-01 23:09:41.204 [WATweak] [UI] viewDidLoad: UIViewController
-2026-11-01 23:09:41.212 [WATweak] [UI] viewDidLoad: WARootViewController
-2026-11-01 23:09:41.228 [WATweak] [UI] viewDidLoad: WAVerificationProfileController
-2026-11-01 23:09:41.234 [WATweak] [UI] viewDidLoad: WAProfileViewController
-2026-11-01 23:09:41.281 [WATweak] [UI] viewDidAppear: WAVerificationProfileController
-2026-11-01 23:09:41.281 [WATweak] [UI] viewDidAppear: WAProfileViewController
-2026-11-01 23:09:41.289 [WATweak] [UI] viewDidLoad: UIPredictionViewController
-2026-11-01 23:09:41.295 [WATweak] [UI] viewDidLoad: UICompatibilityInputViewController
-2026-11-01 23:09:41.296 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
-2026-11-01 23:09:41.297 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
-2026-11-01 23:09:41.318 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
-2026-11-01 23:09:41.336 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
-2026-11-01 23:09:41.336 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
-2026-11-01 23:09:41.345 [WATweak] [UI] viewDidLoad: UIInputWindowController
-2026-11-01 23:09:41.347 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:09:41.362 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:09:41.363 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
-2026-11-01 23:09:41.380 [WATweak] [UI] viewDidAppear: UIInputWindowController
-2026-11-01 23:09:41.381 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:09:41.381 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
-2026-11-01 23:09:41.381 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
-2026-11-01 23:09:41.382 [WATweak] [UI] viewDidAppear: UIPredictionViewController
-2026-11-01 23:09:41.382 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:09:41.382 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
-2026-11-01 23:09:41.740 [WATweak] [UI] viewDidAppear: STKPrewarmingViewController
+2026-11-01 23:56:05.495 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-01 23:56:05.502 [WATweak] SideloadFix initializing in pid=59926
+2026-11-01 23:56:05.503 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-01 23:56:05.508 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-01 23:56:05.526 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x112d5d244
+2026-11-01 23:56:05.681 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-01 23:56:05.749 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-01 23:56:05.755 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-01 23:56:05.763 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-01 23:56:05.771 [WATweak] [UI] viewDidLoad: WAVerificationProfileController
+2026-11-01 23:56:05.771 [WATweak] [VerificationProfileController] viewDidLoad completed
+2026-11-01 23:56:05.776 [WATweak] [UI] viewDidLoad: WAProfileViewController
+2026-11-01 23:56:05.792 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-01 23:56:05.798 [WATweak] [ProfileVC] viewDidLoad completed
+2026-11-01 23:56:05.820 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-01 23:56:05.843 [WATweak] [UI] viewDidAppear: WAVerificationProfileController
+2026-11-01 23:56:05.843 [WATweak] [UI] viewDidAppear: WAProfileViewController
+2026-11-01 23:56:05.850 [WATweak] [UI] viewDidLoad: UIPredictionViewController
+2026-11-01 23:56:05.857 [WATweak] [UI] viewDidLoad: UICompatibilityInputViewController
+2026-11-01 23:56:05.858 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-01 23:56:05.859 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-01 23:56:05.887 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-01 23:56:05.887 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-01 23:56:05.895 [WATweak] [UI] viewDidLoad: UIInputWindowController
+2026-11-01 23:56:05.898 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-01 23:56:05.913 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-01 23:56:05.914 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-01 23:56:05.932 [WATweak] [UI] viewDidAppear: UIInputWindowController
+2026-11-01 23:56:05.933 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-01 23:56:05.933 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-01 23:56:05.933 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
+2026-11-01 23:56:05.933 [WATweak] [UI] viewDidAppear: UIPredictionViewController
+2026-11-01 23:56:05.933 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-01 23:56:05.933 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+
+==================== CRASH: SIGNAL 11 ====================
+0   Tweak.dylib                         0x0000000104d80204 _ZL17our_signalHandleriP9__siginfoPv + 180
+1   libsystem_platform.dylib            0x00000002bf5161b8 BDCDC3C3-CFAC-3030-958F-49047F12C464 + 16824
+2   libobjc.A.dylib                     0x000000019b0f4c84 objc_storeStrong + 60
+3   Tweak.dylib                         0x0000000104d8198c _ZL92_logos_method$_ungrouped$XMPPPresenceControllerMain$reallySendPresenceWithNickname$presence$P26XMPPPresenceControllerMainP13objc_selectorP11objc_objectS4_ + 64
+4   WhatsApp                            0x0000000116cad758 XPluginsGetListLookupDataPair + 1157376
+5   Tweak.dylib                         0x0000000104d81c08 _ZL93_logos_method$_ungrouped$XMPPPresenceControllerMain$sendPresenceWithNickname$deviceAvailable$P26XMPPPresenceControllerMainP13objc_selectorP11objc_objectb + 168
+6   libdispatch.dylib                   0x00000001d895f9a8 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 6568
+7   libdispatch.dylib                   0x00000001d89791e4 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 111076
+8   libdispatch.dylib                   0x00000001d8967fb0 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 40880
+9   libdispatch.dylib                   0x00000001d8968ae4 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 43748
+10  libdispatch.dylib                   0x00000001d8967e18 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 40472
+11  libdispatch.dylib                   0x00000001d8968ae4 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 43748
+12  libdispatch.dylib                   0x00000001d8972dac E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 85420
+13  libdispatch.dylib                   0x00000001d89726ac E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 83628
+14  libsystem_pthread.dylib             0x00000001fd7313b0 _pthread_wqthread + 292
+15  libsystem_pthread.dylib             0x00000001fd7308c0 start_wqthread + 8
+==========================================================
+

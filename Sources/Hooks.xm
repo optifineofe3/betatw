@@ -101,11 +101,11 @@
 
 %hook XMPPPresenceControllerMain
 
-- (void)reallySendPresenceWithNickname:(id)arg1 presence:(id)arg2 {
+- (void)reallySendPresenceWithNickname:(NSString *)arg1 presence:(NSUInteger)arg2 {
     if (WATweakGetBool(kDisableOnline, NO)) {
         return;
     }
-    %orig;
+    %orig(arg1, arg2);
 }
 
 - (void)sendPresence {
@@ -115,29 +115,29 @@
     %orig;
 }
 
-- (void)sendPresenceWithNickname:(id)arg1 {
+- (void)sendPresenceWithNickname:(NSString *)arg1 {
     if (WATweakGetBool(kDisableOnline, NO)) {
         return;
     }
-    %orig;
+    %orig(arg1);
 }
 
-- (void)sendPresenceWithNickname:(id)arg1 deviceAvailable:(BOOL)arg2 {
+- (void)sendPresenceWithNickname:(NSString *)arg1 deviceAvailable:(BOOL)arg2 {
     if (WATweakGetBool(kDisableOnline, NO)) {
         return;
     }
-    %orig;
+    %orig(arg1, arg2);
 }
 
 %end
 
-%hook XMPPConnectionMain
+%hook WAChatViewController
 
-- (void)sendChatState:(id)arg1 toJID:(id)arg2 {
+- (void)changeOutgoingChatState:(NSUInteger)arg1 forChatJID:(id)arg2 {
     if (WATweakGetBool(kDisableTyping, NO)) {
         return;
     }
-    %orig;
+    %orig(arg1, arg2);
 }
 
 %end

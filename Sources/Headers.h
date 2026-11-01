@@ -33,15 +33,20 @@
 
 @interface XMPPPresenceControllerMain : NSObject
 - (void)sendPresence;
-- (void)sendPresenceWithNickname:(id)nickname;
-- (void)reallySendPresenceWithNickname:(id)nickname presence:(id)presence;
-- (void)sendPresenceWithNickname:(id)nickname deviceAvailable:(BOOL)deviceAvailable;
+- (void)sendPresenceWithNickname:(NSString *)nickname;
+- (void)reallySendPresenceWithNickname:(NSString *)nickname presence:(NSUInteger)presence;
+- (void)sendPresenceWithNickname:(NSString *)nickname deviceAvailable:(BOOL)deviceAvailable;
 @end
 
 @interface XMPPConnectionMain : NSObject
 + (BOOL)shouldSendReadReceiptForMessage:(id)message userContext:(id)userContext;
 - (void)sendReadReceiptsForMessagesIfNeeded:(id)messages;
-- (void)sendChatState:(id)state toJID:(id)jid;
+@end
+
+@interface WAChatViewController : UIViewController
+- (void)changeOutgoingChatState:(NSUInteger)state forChatJID:(id)jid;
+- (void)chatStorageDidRevokeMessages:(id)messages;
+- (void)chatStorageWillRevokeMessages:(id)messages;
 @end
 
 @interface WAChatManager : NSObject
