@@ -6,6 +6,7 @@
 #import <Intents/Intents.h>
 #import <objc/runtime.h>
 #import "Headers.h"
+#import "Logger.h"
 #import "fishhook.h"
 
 static NSURL *fakeGroupContainerURL = nil;
@@ -15,7 +16,6 @@ static OSStatus (*orig_SecItemDelete)(CFDictionaryRef);
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef, CFTypeRef*);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef, CFDictionaryRef);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef, CFTypeRef*);
-static CFTypeRef (*orig_SecTaskCopyValueForEntitlement)(void *task, CFStringRef entitlement, CFErrorRef *error) = NULL;
 
 static CFDictionaryRef sanitizedQuery(CFDictionaryRef query) {
     if (!query) return NULL;
@@ -62,18 +62,6 @@ static OSStatus hook_SecItemDelete(CFDictionaryRef query) {
     return status;
 }
 
-static CFTypeRef hook_SecTaskCopyValueForEntitlement(void *task, CFStringRef entitlement, CFErrorRef *error) {
-    if (entitlement) {
-        if (CFEqual(entitlement, CFSTR("com.apple.developer.siri"))) {
-            return (CFTypeRef)CFRetain(kCFBooleanTrue);
-        }
-    }
-    if (orig_SecTaskCopyValueForEntitlement) {
-        return orig_SecTaskCopyValueForEntitlement(task, entitlement, error);
-    }
-    return NULL;
-}
-
 static void createDirectoryIfNotExists(NSURL *URL) {
     if (!URL) return;
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -82,7 +70,7 @@ static void createDirectoryIfNotExists(NSURL *URL) {
     }
 }
 
-static void loadKeychainAccessGroup() {
+static void loadKeychainAccessGroup(void) {
     NSDictionary *dummyItem = @{
         (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
         (__bridge id)kSecAttrAccount : @"dummyWAFix",
@@ -100,77 +88,59 @@ static void loadKeychainAccessGroup() {
         NSDictionary *resultDict = (__bridge id)result;
         keychainAccessGroup = [resultDict[(__bridge id)kSecAttrAccessGroup] copy];
         CFRelease(result);
+        WATweakLog(@"Keychain access group discovered: %@", keychainAccessGroup);
     }
 }
-
-#pragma mark - Mock Siri Vocabulary
-
-@implementation WAFakeVocabulary
-
-- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {}
-- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {}
-- (void)removeAllVocabularyStrings {}
-
-- (BOOL)respondsToSelector:(SEL)aSelector {
-    return YES;
-}
-
-- (BOOL)isKindOfClass:(Class)aClass {
-    if (aClass == [INVocabulary class] || [NSStringFromClass(aClass) containsString:@"Vocabulary"]) {
-        return YES;
-    }
-    return [super isKindOfClass:aClass];
-}
-
-- (id)forwardingTargetForSelector:(SEL)aSelector {
-    return nil;
-}
-
-- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector {
-    NSMethodSignature *sig = [super methodSignatureForSelector:aSelector];
-    if (!sig) {
-        sig = [NSMethodSignature signatureWithObjCTypes:"@@:"];
-    }
-    return sig;
-}
-
-- (void)forwardInvocation:(NSInvocation *)anInvocation {
-    void *nullPtr = NULL;
-    if (anInvocation.methodSignature.methodReturnLength > 0) {
-        [anInvocation setReturnValue:&nullPtr];
-    }
-}
-
-@end
 
 #pragma mark - Siri & Intents Entitlement Fix (LiveContainer / Sideloading)
 
 %hook INVocabulary
 
 + (id)sharedVocabulary {
-    static WAFakeVocabulary *fake = nil;
+    static INVocabulary *fake = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        fake = [[WAFakeVocabulary alloc] init];
+        fake = [[%c(INVocabulary) alloc] init];
     });
     return fake;
 }
 
-- (id)init {
-    return (id)[[WAFakeVocabulary alloc] init];
+- (instancetype)init {
+    // Return self without invoking %orig (prevents entitlement check exception)
+    return self;
 }
 
-- (void)setVocabularyStrings:(id)arg1 ofType:(INVocabularyStringType)arg2 {
-    // no-op: prevents Siri entitlement check exception
-}
-
-%new
-- (void)setVocabulary:(id)arg1 ofType:(NSInteger)arg2 {
-    // no-op
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"Intercepted setVocabularyStrings:ofType: -> ignored to prevent entitlement crash");
 }
 
 - (void)removeAllVocabularyStrings {
-    // no-op
+    WATweakLog(@"Intercepted removeAllVocabularyStrings -> ignored");
+}
+
+%end
+
+%hook _INVocabulary
+
++ (id)sharedVocabulary {
+    static _INVocabulary *fake = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        fake = [[%c(_INVocabulary) alloc] init];
+    });
+    return fake;
+}
+
+- (instancetype)init {
+    return self;
+}
+
+- (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
+    WATweakLog(@"Intercepted _INVocabulary setVocabularyStrings:ofType:");
+}
+
+- (void)removeAllVocabularyStrings {
+    WATweakLog(@"Intercepted _INVocabulary removeAllVocabularyStrings");
 }
 
 %end
@@ -208,6 +178,7 @@ static void loadKeychainAccessGroup() {
 %hook UNUserNotificationCenter
 
 - (void)requestAuthorizationWithOptions:(UNAuthorizationOptions)options completionHandler:(void (^)(BOOL granted, NSError *error))completionHandler {
+    WATweakLog(@"Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES");
     if (completionHandler) {
         dispatch_async(dispatch_get_main_queue(), ^{
             completionHandler(YES, nil);
@@ -250,6 +221,7 @@ static void loadKeychainAccessGroup() {
 %hook WAContextualizePermissionsHelper
 
 + (BOOL)isPermissionPrimerEnabledWithUserContext:(id)arg1 {
+    WATweakLog(@"WAContextualizePermissionsHelper isPermissionPrimerEnabled -> NO");
     return NO;
 }
 
@@ -267,7 +239,6 @@ static void loadKeychainAccessGroup() {
 
 - (void)startLoadingState {
     %orig;
-    // Fallback: if SpringBoard notification response hangs in container, end loading state
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if ([self respondsToSelector:@selector(endLoadingStateWithCompletion:)]) {
             [self endLoadingStateWithCompletion:nil];
@@ -277,20 +248,18 @@ static void loadKeychainAccessGroup() {
 
 %end
 
-#pragma mark - Contacts Authorization Fix
+#pragma mark - Contacts Authorization Fix for LiveContainer
 
 %hook CNContactStore
 
 - (void)requestAccessForEntityType:(CNEntityType)entityType completionHandler:(void (^)(BOOL granted, NSError *error))completionHandler {
+    WATweakLog(@"CNContactStore requestAccessForEntityType -> safely reporting NO to prevent AddressBook sandbox crash");
     if (completionHandler) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            completionHandler(YES, nil);
+            // Report NO so WhatsApp skips querying AddressBook.sqlitedb (which is restricted in LiveContainer)
+            completionHandler(NO, nil);
         });
     }
-}
-
-+ (CNAuthorizationStatus)authorizationStatusForEntityType:(CNEntityType)entityType {
-    return CNAuthorizationStatusAuthorized;
 }
 
 %end
@@ -320,6 +289,9 @@ static void loadKeychainAccessGroup() {
 
 %ctor {
     @autoreleasepool {
+        installCrashHandler();
+        WATweakLog(@"SideloadFix initializing in pid=%d", getpid());
+
         fakeGroupContainerURL = [NSURL fileURLWithPath:[NSHomeDirectory() stringByAppendingPathComponent:@"Documents/FakeGroupContainers"] isDirectory:YES];
         createDirectoryIfNotExists(fakeGroupContainerURL);
 
@@ -331,53 +303,10 @@ static void loadKeychainAccessGroup() {
                 {"SecItemCopyMatching", (void*)hook_SecItemCopyMatching, (void**)&orig_SecItemCopyMatching},
                 {"SecItemUpdate", (void*)hook_SecItemUpdate, (void**)&orig_SecItemUpdate},
                 {"SecItemDelete", (void*)hook_SecItemDelete, (void**)&orig_SecItemDelete},
-                {"SecTaskCopyValueForEntitlement", (void*)hook_SecTaskCopyValueForEntitlement, (void**)&orig_SecTaskCopyValueForEntitlement},
             },
-            5
+            4
         );
 
-        // Dynamic hook for private _INVocabulary if present
-        Class _inVocabCls = objc_getClass("_INVocabulary");
-        if (_inVocabCls) {
-            Method mShared = class_getClassMethod(_inVocabCls, @selector(sharedVocabulary));
-            if (mShared) {
-                method_setImplementation(mShared, imp_implementationWithBlock(^{
-                    static WAFakeVocabulary *fake = nil;
-                    static dispatch_once_t onceToken;
-                    dispatch_once(&onceToken, ^{
-                        fake = [[WAFakeVocabulary alloc] init];
-                    });
-                    return fake;
-                }));
-            }
-            Method mInit = class_getInstanceMethod(_inVocabCls, @selector(init));
-            if (mInit) {
-                method_setImplementation(mInit, imp_implementationWithBlock(^(id self) {
-                    return [[WAFakeVocabulary alloc] init];
-                }));
-            }
-        }
-
-        // Swizzle WhatsApp internal methods that donate Siri vocabulary
-        unsigned int classCount = 0;
-        Class *classes = objc_copyClassList(&classCount);
-        if (classes) {
-            SEL sel1 = sel_registerName("__registerSiriVocabulary");
-            SEL sel2 = sel_registerName("registerSiriVocabularyIfNeeded");
-            IMP noopImp = imp_implementationWithBlock(^(id self) {});
-
-            for (unsigned int i = 0; i < classCount; i++) {
-                Class cls = classes[i];
-                Method m1 = class_getInstanceMethod(cls, sel1);
-                if (m1) {
-                    method_setImplementation(m1, noopImp);
-                }
-                Method m2 = class_getInstanceMethod(cls, sel2);
-                if (m2) {
-                    method_setImplementation(m2, noopImp);
-                }
-            }
-            free(classes);
-        }
+        WATweakLog(@"SideloadFix initialized successfully.");
     }
 }
