@@ -6,9 +6,7 @@
 #import <Intents/Intents.h>
 #import <objc/runtime.h>
 #include <dlfcn.h>
-#include <execinfo.h>
 #include <unistd.h>
-#include <signal.h>
 #import "Headers.h"
 #import "Logger.h"
 #import "fishhook.h"
@@ -20,47 +18,6 @@ static OSStatus (*orig_SecItemDelete)(CFDictionaryRef);
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef, CFTypeRef*);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef, CFDictionaryRef);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef, CFTypeRef*);
-
-static void (*orig_exit)(int) = NULL;
-static void (*orig__exit)(int) = NULL;
-static void (*orig_abort)(void) = NULL;
-static int (*orig_kill)(pid_t, int) = NULL;
-
-static void logBacktraceAndCall(const char *fnName, int code) {
-    void *callstack[128];
-    int frames = backtrace(callstack, 128);
-    char **strs = backtrace_symbols(callstack, frames);
-    NSMutableString *log = [NSMutableString stringWithFormat:@"\n[WATweak] Intercepted %s(code=%d)! Backtrace:\n", fnName, code];
-    if (strs) {
-        for (int i = 0; i < frames; i++) {
-            [log appendFormat:@"  %s\n", strs[i]];
-        }
-        free(strs);
-    }
-    tweakLog(@"%@", log);
-}
-
-static void hook_exit(int code) {
-    logBacktraceAndCall("exit", code);
-    if (orig_exit) orig_exit(code);
-}
-
-static void hook__exit(int code) {
-    logBacktraceAndCall("_exit", code);
-    if (orig__exit) orig__exit(code);
-}
-
-static void hook_abort(void) {
-    logBacktraceAndCall("abort", 0);
-    if (orig_abort) orig_abort();
-}
-
-static int hook_kill(pid_t pid, int sig) {
-    if (pid == getpid() || pid == 0) {
-        logBacktraceAndCall("kill", sig);
-    }
-    return orig_kill ? orig_kill(pid, sig) : 0;
-}
 
 static CFDictionaryRef sanitizedQuery(CFDictionaryRef query) {
     if (!query) return NULL;
@@ -137,72 +94,56 @@ static void loadKeychainAccessGroup(void) {
     }
 }
 
-#pragma mark - Fake CloudKit (Prevents CKException crash in LiveContainer)
+#pragma mark - CloudKit Sideload Fix (Suppresses CKException in LiveContainer)
 
-@interface FakeCKDatabase : NSObject
-@end
+%hook CKContainer
 
-@implementation FakeCKDatabase
-
-- (void)fetchRecordWithID:(id)recordID completionHandler:(void (^)(id record, NSError *error))completionHandler {
-    if (completionHandler) {
-        NSError *err = [NSError errorWithDomain:@"CKErrorDomain" code:1 userInfo:@{NSLocalizedDescriptionKey: @"CloudKit unavailable in container"}];
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            completionHandler(nil, err);
-        });
-    }
-}
-
-- (void)fetchWithRecordID:(id)recordID completionHandler:(void (^)(id record, NSError *error))completionHandler {
-    [self fetchRecordWithID:recordID completionHandler:completionHandler];
-}
-
-- (id)forwardingTargetForSelector:(SEL)aSelector {
++ (id)defaultContainer {
     return nil;
 }
 
-@end
-
-@interface FakeCKContainer : NSObject
-+ (instancetype)sharedFake;
-@end
-
-@implementation FakeCKContainer
-
-+ (instancetype)sharedFake {
-    static FakeCKContainer *instance = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[FakeCKContainer alloc] init];
-    });
-    return instance;
-}
-
-- (id)databaseWithDatabaseScope:(long long)databaseScope {
-    return [[FakeCKDatabase alloc] init];
-}
-
-- (id)databaseWith:(long long)databaseScope {
-    return [[FakeCKDatabase alloc] init];
-}
-
-- (id)publicCloudDatabase {
-    return [[FakeCKDatabase alloc] init];
-}
-
-- (id)privateCloudDatabase {
-    return [[FakeCKDatabase alloc] init];
-}
-
-- (id)sharedCloudDatabase {
-    return [[FakeCKDatabase alloc] init];
-}
-
-- (id)forwardingTargetForSelector:(SEL)aSelector {
++ (id)containerWithIdentifier:(id)a {
     return nil;
 }
 
-@end
+- (id)_setupWithContainerID:(id)a options:(id)b {
+    return nil;
+}
+
+- (id)_initWithContainerIdentifier:(id)a {
+    return nil;
+}
+
+%end
+
+%hook CKEntitlements
+
+- (id)initWithEntitlementsDict:(NSDictionary *)entitlements {
+    NSMutableDictionary *mutEntitlements = [entitlements mutableCopy];
+    [mutEntitlements removeObjectForKey:@"com.apple.developer.icloud-container-environment"];
+    [mutEntitlements removeObjectForKey:@"com.apple.developer.icloud-services"];
+    return %orig([mutEntitlements copy]);
+}
+
+%end
+
+#pragma mark - DeviceCheck & App Attest Sideload Fix (Bypasses Attestation Checks)
+
+%hook DCDevice
+
+- (BOOL)isSupported {
+    return NO;
+}
+
+%end
+
+%hook DCAppAttestService
+
+- (BOOL)isSupported {
+    return NO;
+}
+
+%end
 
 #pragma mark - Siri & Intents Entitlement Fix (LiveContainer / Sideloading)
 
@@ -461,44 +402,17 @@ static void loadKeychainAccessGroup(void) {
 
         loadKeychainAccessGroup();
 
-        // 1. Hook CKContainer if CloudKit is present
-        Class ckClass = objc_getClass("CKContainer");
-        if (!ckClass) {
-            dlopen("/System/Library/Frameworks/CloudKit.framework/CloudKit", RTLD_NOW);
-            ckClass = objc_getClass("CKContainer");
-        }
-        if (ckClass) {
-            Method defaultContainerMethod = class_getClassMethod(ckClass, @selector(defaultContainer));
-            if (defaultContainerMethod) {
-                method_setImplementation(defaultContainerMethod, imp_implementationWithBlock(^id(id selfClass) {
-                    WATweakLog(@"[CloudKit] Hooked defaultContainer -> FakeCKContainer");
-                    return [FakeCKContainer sharedFake];
-                }));
-            }
-            Method containerWithIdMethod = class_getClassMethod(ckClass, @selector(containerWithIdentifier:));
-            if (containerWithIdMethod) {
-                method_setImplementation(containerWithIdMethod, imp_implementationWithBlock(^id(id selfClass, id identifier) {
-                    WATweakLog(@"[CloudKit] Hooked containerWithIdentifier:%@ -> FakeCKContainer", identifier);
-                    return [FakeCKContainer sharedFake];
-                }));
-            }
-        }
-
-        // 2. Rebind symbols with fishhook
         rebind_symbols(
             (struct rebinding[]){
                 {"SecItemAdd", (void*)hook_SecItemAdd, (void**)&orig_SecItemAdd},
                 {"SecItemCopyMatching", (void*)hook_SecItemCopyMatching, (void**)&orig_SecItemCopyMatching},
                 {"SecItemUpdate", (void*)hook_SecItemUpdate, (void**)&orig_SecItemUpdate},
                 {"SecItemDelete", (void*)hook_SecItemDelete, (void**)&orig_SecItemDelete},
-                {"exit", (void*)hook_exit, (void**)&orig_exit},
-                {"_exit", (void*)hook__exit, (void**)&orig__exit},
-                {"abort", (void*)hook_abort, (void**)&orig_abort},
-                {"kill", (void*)hook_kill, (void**)&orig_kill},
             },
-            8
+            4
         );
 
-        WATweakLog(@"SideloadFix initialized successfully.");
+        %init;
+        WATweakLog(@"SideloadFix initialized and %%init completed successfully.");
     }
 }

@@ -100,3 +100,24 @@
 @interface INPreferences (Private)
 - (void)_verifyEntitlements;
 @end
+
+@interface DCDevice : NSObject
++ (instancetype)currentDevice;
+- (BOOL)isSupported;
+@end
+
+@interface DCAppAttestService : NSObject
++ (instancetype)sharedService;
+- (BOOL)isSupported;
+@end
+
+@interface CKContainer : NSObject
++ (instancetype)defaultContainer;
++ (instancetype)containerWithIdentifier:(NSString *)identifier;
+- (id)_setupWithContainerID:(id)a options:(id)b;
+- (id)_initWithContainerIdentifier:(id)a;
+@end
+
+@interface CKEntitlements : NSObject
+- (id)initWithEntitlementsDict:(NSDictionary *)entitlements;
+@end
