@@ -96,3 +96,7 @@
 - (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2;
 - (void)removeAllVocabularyStrings;
 @end
+
+@interface INPreferences (Private)
+- (void)_verifyEntitlements;
+@end

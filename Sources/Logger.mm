@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <exception>
 
 static NSString *getLogFilePath(void) {
     static NSString *path = nil;
@@ -92,10 +93,35 @@ static void signalHandler(int sig, siginfo_t *info, void *context) {
     _exit(128 + sig);
 }
 
+static void cppTerminateHandler(void) {
+    void *callstack[128];
+    int frames = backtrace(callstack, 128);
+    char **strs = backtrace_symbols(callstack, frames);
+
+    NSString *docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/tweak_debug.txt"];
+    int fd = open([docs UTF8String], O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd >= 0) {
+        const char *header = "\n==================== CRASH: C++ std::terminate ====================\n";
+        write(fd, header, strlen(header));
+        if (strs) {
+            for (int i = 0; i < frames; ++i) {
+                write(fd, strs[i], strlen(strs[i]));
+                write(fd, "\n", 1);
+            }
+            free(strs);
+        }
+        const char *footer = "===================================================================\n\n";
+        write(fd, footer, strlen(footer));
+        close(fd);
+    }
+    _exit(1);
+}
+
 void installCrashHandler(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         NSSetUncaughtExceptionHandler(&uncaughtExceptionHandler);
+        std::set_terminate(cppTerminateHandler);
 
         struct sigaction sa;
         memset(&sa, 0, sizeof(sa));
@@ -107,7 +133,9 @@ void installCrashHandler(void) {
         sigaction(SIGABRT, &sa, NULL);
         sigaction(SIGILL, &sa, NULL);
         sigaction(SIGTRAP, &sa, NULL);
+        sigaction(SIGFPE, &sa, NULL);
+        sigaction(SIGSYS, &sa, NULL);
 
-        tweakLog(@"[WATweak] Crash handler installed. Logging to Documents/tweak_debug.txt");
+        tweakLog(@"[WATweak] Crash handler installed (Exceptions + Signals + C++ terminate).");
     });
 }

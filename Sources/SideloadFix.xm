@@ -5,6 +5,10 @@
 #import <Security/Security.h>
 #import <Intents/Intents.h>
 #import <objc/runtime.h>
+#include <dlfcn.h>
+#include <execinfo.h>
+#include <unistd.h>
+#include <signal.h>
 #import "Headers.h"
 #import "Logger.h"
 #import "fishhook.h"
@@ -16,6 +20,47 @@ static OSStatus (*orig_SecItemDelete)(CFDictionaryRef);
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef, CFTypeRef*);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef, CFDictionaryRef);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef, CFTypeRef*);
+
+static void (*orig_exit)(int) = NULL;
+static void (*orig__exit)(int) = NULL;
+static void (*orig_abort)(void) = NULL;
+static int (*orig_kill)(pid_t, int) = NULL;
+
+static void logBacktraceAndCall(const char *fnName, int code) {
+    void *callstack[128];
+    int frames = backtrace(callstack, 128);
+    char **strs = backtrace_symbols(callstack, frames);
+    NSMutableString *log = [NSMutableString stringWithFormat:@"\n[WATweak] Intercepted %s(code=%d)! Backtrace:\n", fnName, code];
+    if (strs) {
+        for (int i = 0; i < frames; i++) {
+            [log appendFormat:@"  %s\n", strs[i]];
+        }
+        free(strs);
+    }
+    tweakLog(@"%@", log);
+}
+
+static void hook_exit(int code) {
+    logBacktraceAndCall("exit", code);
+    if (orig_exit) orig_exit(code);
+}
+
+static void hook__exit(int code) {
+    logBacktraceAndCall("_exit", code);
+    if (orig__exit) orig__exit(code);
+}
+
+static void hook_abort(void) {
+    logBacktraceAndCall("abort", 0);
+    if (orig_abort) orig_abort();
+}
+
+static int hook_kill(pid_t pid, int sig) {
+    if (pid == getpid() || pid == 0) {
+        logBacktraceAndCall("kill", sig);
+    }
+    return orig_kill ? orig_kill(pid, sig) : 0;
+}
 
 static CFDictionaryRef sanitizedQuery(CFDictionaryRef query) {
     if (!query) return NULL;
@@ -92,7 +137,102 @@ static void loadKeychainAccessGroup(void) {
     }
 }
 
+#pragma mark - Fake CloudKit (Prevents CKException crash in LiveContainer)
+
+@interface FakeCKDatabase : NSObject
+@end
+
+@implementation FakeCKDatabase
+
+- (void)fetchRecordWithID:(id)recordID completionHandler:(void (^)(id record, NSError *error))completionHandler {
+    if (completionHandler) {
+        NSError *err = [NSError errorWithDomain:@"CKErrorDomain" code:1 userInfo:@{NSLocalizedDescriptionKey: @"CloudKit unavailable in container"}];
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            completionHandler(nil, err);
+        });
+    }
+}
+
+- (void)fetchWithRecordID:(id)recordID completionHandler:(void (^)(id record, NSError *error))completionHandler {
+    [self fetchRecordWithID:recordID completionHandler:completionHandler];
+}
+
+- (id)forwardingTargetForSelector:(SEL)aSelector {
+    return nil;
+}
+
+@end
+
+@interface FakeCKContainer : NSObject
++ (instancetype)sharedFake;
+@end
+
+@implementation FakeCKContainer
+
++ (instancetype)sharedFake {
+    static FakeCKContainer *instance = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        instance = [[FakeCKContainer alloc] init];
+    });
+    return instance;
+}
+
+- (id)databaseWithDatabaseScope:(long long)databaseScope {
+    return [[FakeCKDatabase alloc] init];
+}
+
+- (id)databaseWith:(long long)databaseScope {
+    return [[FakeCKDatabase alloc] init];
+}
+
+- (id)publicCloudDatabase {
+    return [[FakeCKDatabase alloc] init];
+}
+
+- (id)privateCloudDatabase {
+    return [[FakeCKDatabase alloc] init];
+}
+
+- (id)sharedCloudDatabase {
+    return [[FakeCKDatabase alloc] init];
+}
+
+- (id)forwardingTargetForSelector:(SEL)aSelector {
+    return nil;
+}
+
+@end
+
 #pragma mark - Siri & Intents Entitlement Fix (LiveContainer / Sideloading)
+
+%hook INPreferences
+
++ (NSInteger)siriAuthorizationStatus {
+    return 2; // INSiriAuthorizationStatusDenied -> tells WhatsApp Siri is disabled
+}
+
++ (void)requestSiriAuthorization:(void (^)(NSInteger status))handler {
+    if (handler) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            handler(2);
+        });
+    }
+}
+
++ (id)siriLanguageCode {
+    return @"en-US";
+}
+
+- (void)_verifyEntitlements {
+    // Suppress entitlement throw
+}
+
+- (instancetype)init {
+    return self;
+}
+
+%end
 
 %hook INVocabulary
 
@@ -106,12 +246,11 @@ static void loadKeychainAccessGroup(void) {
 }
 
 - (instancetype)init {
-    // Return self without invoking %orig (prevents entitlement check exception)
     return self;
 }
 
 - (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
-    WATweakLog(@"Intercepted setVocabularyStrings:ofType: -> ignored to prevent entitlement crash");
+    WATweakLog(@"Intercepted setVocabularyStrings:ofType: -> ignored");
 }
 
 - (void)removeAllVocabularyStrings {
@@ -136,27 +275,9 @@ static void loadKeychainAccessGroup(void) {
 }
 
 - (void)setVocabularyStrings:(id)arg1 ofType:(NSInteger)arg2 {
-    WATweakLog(@"Intercepted _INVocabulary setVocabularyStrings:ofType:");
 }
 
 - (void)removeAllVocabularyStrings {
-    WATweakLog(@"Intercepted _INVocabulary removeAllVocabularyStrings");
-}
-
-%end
-
-%hook INPreferences
-
-+ (INSiriAuthorizationStatus)siriAuthorizationStatus {
-    return INSiriAuthorizationStatusAuthorized;
-}
-
-+ (void)requestSiriAuthorization:(void (^)(INSiriAuthorizationStatus status))handler {
-    if (handler) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            handler(INSiriAuthorizationStatusAuthorized);
-        });
-    }
 }
 
 %end
@@ -169,6 +290,50 @@ static void loadKeychainAccessGroup(void) {
             completion(nil);
         });
     }
+}
+
+%end
+
+#pragma mark - Bundle Identifier Spoofing for Anti-Tamper
+
+%hook NSBundle
+
+- (NSString *)bundleIdentifier {
+    Dl_info info;
+    NSArray *address = [NSThread callStackReturnAddresses];
+    if (address.count > 2 && dladdr((void *)[address[2] longLongValue], &info) != 0) {
+        NSString *path = [NSString stringWithUTF8String:info.dli_fname];
+        if ([path hasPrefix:NSBundle.mainBundle.bundlePath]) {
+            return @"net.whatsapp.WhatsApp";
+        }
+    }
+    return %orig;
+}
+
+- (id)objectForInfoDictionaryKey:(NSString *)key {
+    if ([key isEqualToString:@"CFBundleIdentifier"]) {
+        return @"net.whatsapp.WhatsApp";
+    }
+    if ([key isEqualToString:@"CFBundleDisplayName"] || [key isEqualToString:@"CFBundleName"]) {
+        return @"WhatsApp";
+    }
+    return %orig;
+}
+
+%end
+
+#pragma mark - UI Flow Logging
+
+%hook UIViewController
+
+- (void)viewDidLoad {
+    %orig;
+    WATweakLog(@"[UI] viewDidLoad: %@", NSStringFromClass([self class]));
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    WATweakLog(@"[UI] viewDidAppear: %@", NSStringFromClass([self class]));
 }
 
 %end
@@ -256,7 +421,6 @@ static void loadKeychainAccessGroup(void) {
     WATweakLog(@"CNContactStore requestAccessForEntityType -> safely reporting NO to prevent AddressBook sandbox crash");
     if (completionHandler) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            // Report NO so WhatsApp skips querying AddressBook.sqlitedb (which is restricted in LiveContainer)
             completionHandler(NO, nil);
         });
     }
@@ -297,14 +461,42 @@ static void loadKeychainAccessGroup(void) {
 
         loadKeychainAccessGroup();
 
+        // 1. Hook CKContainer if CloudKit is present
+        Class ckClass = objc_getClass("CKContainer");
+        if (!ckClass) {
+            dlopen("/System/Library/Frameworks/CloudKit.framework/CloudKit", RTLD_NOW);
+            ckClass = objc_getClass("CKContainer");
+        }
+        if (ckClass) {
+            Method defaultContainerMethod = class_getClassMethod(ckClass, @selector(defaultContainer));
+            if (defaultContainerMethod) {
+                method_setImplementation(defaultContainerMethod, imp_implementationWithBlock(^id(id selfClass) {
+                    WATweakLog(@"[CloudKit] Hooked defaultContainer -> FakeCKContainer");
+                    return [FakeCKContainer sharedFake];
+                }));
+            }
+            Method containerWithIdMethod = class_getClassMethod(ckClass, @selector(containerWithIdentifier:));
+            if (containerWithIdMethod) {
+                method_setImplementation(containerWithIdMethod, imp_implementationWithBlock(^id(id selfClass, id identifier) {
+                    WATweakLog(@"[CloudKit] Hooked containerWithIdentifier:%@ -> FakeCKContainer", identifier);
+                    return [FakeCKContainer sharedFake];
+                }));
+            }
+        }
+
+        // 2. Rebind symbols with fishhook
         rebind_symbols(
             (struct rebinding[]){
                 {"SecItemAdd", (void*)hook_SecItemAdd, (void**)&orig_SecItemAdd},
                 {"SecItemCopyMatching", (void*)hook_SecItemCopyMatching, (void**)&orig_SecItemCopyMatching},
                 {"SecItemUpdate", (void*)hook_SecItemUpdate, (void**)&orig_SecItemUpdate},
                 {"SecItemDelete", (void*)hook_SecItemDelete, (void**)&orig_SecItemDelete},
+                {"exit", (void*)hook_exit, (void**)&orig_exit},
+                {"_exit", (void*)hook__exit, (void**)&orig__exit},
+                {"abort", (void*)hook_abort, (void**)&orig_abort},
+                {"kill", (void*)hook_kill, (void**)&orig_kill},
             },
-            4
+            8
         );
 
         WATweakLog(@"SideloadFix initialized successfully.");
