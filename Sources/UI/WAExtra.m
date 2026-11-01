@@ -1,3 +1,6 @@
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 #import "WAExtra.h"
 #import "WAExtraLocalization.h"
 #import "../Constants.h"
@@ -65,7 +68,12 @@
     UIAlertAction *okAction = [UIAlertAction actionWithTitle:WALoc(@"OK")
                                                        style:UIAlertActionStyleDestructive
                                                      handler:^(UIAlertAction * _Nonnull action) {
-        [[UIApplication sharedApplication] performSelector:@selector(suspend)];
+        #pragma clang diagnostic push
+        #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        if ([[UIApplication sharedApplication] respondsToSelector:@selector(suspend)]) {
+            [[UIApplication sharedApplication] performSelector:@selector(suspend)];
+        }
+        #pragma clang diagnostic pop
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             exit(0);
         });

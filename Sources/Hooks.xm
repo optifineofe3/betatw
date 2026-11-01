@@ -326,9 +326,9 @@
 #pragma mark - 8. Tweak Menu Trigger (Long-press on Help and Feedback)
 
 static NSString *findTextRecursively(UIView *view) {
-    if ([view respondsToSelector:@selector(text)]) {
-        NSString *t = [view performSelector:@selector(text)];
-        if ([t isKindOfClass:[NSString class]] && t.length > 0) {
+    if ([view isKindOfClass:[UILabel class]]) {
+        NSString *t = [(UILabel *)view text];
+        if (t.length > 0) {
             return t;
         }
     }
