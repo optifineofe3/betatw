@@ -1,0 +1,43 @@
+name: Build Tweak (.deb)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build .deb
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Theos
+        uses: waruhachi/theos-action@v2.4.6
+        with:
+          theos-src: 'waruhachi/theos'
+          theos-branch: 'main'
+          sdks-src: 'waruhachi/sdks'
+          sdks-branch: 'main'
+
+      - name: Install build tools
+        run: |
+          brew install make dpkg ldid
+          echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+
+      - name: Compile Tweak (.deb rootless)
+        run: |
+          THEOS_PACKAGE_SCHEME=rootless make clean package FINALPACKAGE=1 STRIP=0
+          DEB_PATH=$(find packages -name "*.deb" | head -1)
+          [ -n "$DEB_PATH" ] || { echo "::error::deb not produced" >&2; exit 1; }
+          echo "DEB_PATH=$DEB_PATH" >> $GITHUB_ENV
+          echo "DEB_NAME=$(basename "$DEB_PATH")" >> $GITHUB_ENV
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DEB_NAME }}
+          path: ${{ env.DEB_PATH }}

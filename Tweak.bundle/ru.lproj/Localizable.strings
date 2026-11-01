@@ -1,0 +1,35 @@
+"TWEAK_SETTINGS" = "Настройки Tweak";
+"APPLY" = "Применить";
+"APPLY_CHANGES" = "Перезапустить WhatsApp для применения изменений?";
+"CANCEL" = "Отмена";
+"OK" = "ОК";
+
+"MEDIA_QUALITY_HEADER" = "Качество медиа (Без сжатия)";
+"UNCOMPRESSED_PHOTOS_TITLE" = "Фото без сжатия";
+"UNCOMPRESSED_PHOTOS_SUBTITLE" = "Отправка фото в 100% качестве и оригинальном разрешении";
+"UNCOMPRESSED_VIDEOS_TITLE" = "Видео без сжатия";
+"UNCOMPRESSED_VIDEOS_SUBTITLE" = "Отправка видео с максимальным битрейтом и исходным качеством";
+
+"GHOST_MODE_HEADER" = "Ghost Mode (Режим невидимки)";
+"DISABLE_ONLINE_TITLE" = "Скрыть статус «В сети»";
+"DISABLE_ONLINE_SUBTITLE" = "Вы всегда будете отображаться оффлайн для собеседников";
+"DISABLE_TYPING_TITLE" = "Скрыть статус набора текста";
+"DISABLE_TYPING_SUBTITLE" = "Не отправлять «печатает...» и «записывает аудио...»";
+
+"READ_RECEIPTS_HEADER" = "Конфиденциальность прочтения";
+"DISABLE_READ_RECEIPTS_TITLE" = "Отключить синие галочки";
+"DISABLE_READ_RECEIPTS_SUBTITLE" = "Собеседник видит только две серые галочки (доставлено)";
+"DISABLE_STATUS_RECEIPTS_TITLE" = "Скрытный просмотр историй";
+"DISABLE_STATUS_RECEIPTS_SUBTITLE" = "Анонимный просмотр чужих статусов без отметки в списке";
+
+"ANTI_REVOKE_HEADER" = "Защита сообщений";
+"ANTI_REVOKE_TITLE" = "Anti-Revoke (Не удалять сообщения)";
+"ANTI_REVOKE_SUBTITLE" = "Сохранять удаленные собеседником сообщения с плашкой [DEL]";
+"UNLIMITED_VIEW_ONCE_TITLE" = "Бесконечный просмотр View-Once";
+"UNLIMITED_VIEW_ONCE_SUBTITLE" = "Просмотр одноразовых фото и видео неограниченное число раз";
+
+"SECURITY_HEADER" = "Защита и безопасность";
+"DISABLE_SCREENSHOT_DETECTION_TITLE" = "Блокировка детекта скриншотов";
+"DISABLE_SCREENSHOT_DETECTION_SUBTITLE" = "Скрывать снятие скриншотов и обходить черный экран";
+"DISABLE_SCREEN_RECORDING_PAUSE_TITLE" = "Видео при записи экрана";
+"DISABLE_SCREEN_RECORDING_PAUSE_SUBTITLE" = "Не ставить воспроизведение видео на паузу при записи экрана";

@@ -1,0 +1,8 @@
+Package: com.tweak.whatsapp
+Name: Tweak
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Advanced Custom Tweak for WhatsApp iOS
+Section: Tweaks
+Maintainer: Developer
+Author: Developer

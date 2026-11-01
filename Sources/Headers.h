@@ -1,0 +1,79 @@
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+
+@interface WAMultiSendMediaItemQuality : NSObject
++ (id)fullQuality;
++ (id)documentImageQuality;
++ (id)chatQuality;
++ (id)defaultChatQuality;
++ (id)hdQuality;
++ (NSUInteger)maximumValidImageEdge;
+- (CGFloat)imageQuality;
+- (NSUInteger)imageMaximumEdge;
+- (NSUInteger)imageMaximumFileSize;
+- (NSUInteger)videoMaximumWidth;
+- (NSUInteger)videoMaximumHeight;
+- (NSUInteger)videoMaximumBitrate;
+@end
+
+@interface UITTranscodeConfig : NSObject
+- (CGFloat)maxCompressionQuality;
+- (CGFloat)minCompressionQuality;
+- (void)setMaxCompressionQuality:(CGFloat)quality;
+- (void)setMinCompressionQuality:(CGFloat)quality;
+@end
+
+@interface WAJPEGProcessor : NSObject
++ (id)encodeFromUrlWithInputImageUrl:(id)arg1 outputImageUrl:(id)arg2 targetSize:(CGSize)arg3 imageQuality:(CGFloat)arg4 peakMemoryUseBytes:(NSUInteger)arg5 isHDImage:(BOOL)arg6 pjpegScans:(id)arg7 uitConfig:(id)arg8 abProperties:(id)arg9 progressCallback:(id)arg10 parseError:(id)arg11;
+@end
+
+@interface XMPPPresenceControllerMain : NSObject
+- (void)sendPresence;
+- (void)sendPresenceWithNickname:(id)nickname;
+- (void)reallySendPresenceWithNickname:(id)nickname presence:(id)presence;
+- (void)sendPresenceWithNickname:(id)nickname deviceAvailable:(BOOL)deviceAvailable;
+@end
+
+@interface XMPPConnectionMain : NSObject
++ (BOOL)shouldSendReadReceiptForMessage:(id)message userContext:(id)userContext;
+- (void)sendReadReceiptsForMessagesIfNeeded:(id)messages;
+- (void)sendChatState:(id)state toJID:(id)jid;
+@end
+
+@interface WAChatManager : NSObject
+- (void)markChatSessions:(id)sessions read:(BOOL)read sendReadReceipts:(BOOL)sendReadReceipts error:(id *)error;
+- (void)sendReadReceiptsForMessagesBeforeAndIncludingMessage:(id)message inChatSession:(id)session isMarkedByUser:(BOOL)isMarkedByUser;
+- (void)markStatusAsSeen:(id)status sendReadReceipts:(BOOL)sendReadReceipts skipUpdateChatSession:(BOOL)skip;
+@end
+
+@interface WAStatusXMPPService : NSObject
+- (void)sendReadReceiptsForStatuses:(id)statuses;
+@end
+
+@interface WAMessage : NSObject
+@property (nonatomic, assign) BOOL isViewOnce;
+@property (nonatomic, assign) int64_t viewOnceCount;
+- (BOOL)isViewOnceOpened;
+- (void)markViewOnceMessageExpiredIfPossible;
+- (NSString *)stanzaId;
+- (id)chatJID;
+- (NSString *)text;
+@end
+
+@interface WASettingsViewController : UIViewController <UITableViewDelegate, UITableViewDataSource>
+@property (nonatomic, strong) UITableView *tableView;
+@end
+
+@interface WAViewOnceMessageViewController : UIViewController
+- (void)userDidTakeScreenshot:(id)notification;
+- (void)viewOnceButtonTappedWithSender:(id)sender;
+@end
+
+@interface WAGroupIconViewController : UIViewController
+- (void)addScreenshotProtectionIfNeeded;
+- (void)addScreenRecordingProtectionIfNeeded;
+@end
+
+@interface WhatsAppAppDelegate : UIResponder <UIApplicationDelegate>
+- (void)applicationUserDidTakeScreenshot:(id)notification;
+@end

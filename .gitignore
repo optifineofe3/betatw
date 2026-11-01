@@ -1,0 +1,9 @@
+.theos
+obj
+packages
+*.ipa
+*.deb
+*.DS_Store
+.vscode
+.build
+Outputs
