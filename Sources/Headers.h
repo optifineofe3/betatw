@@ -77,3 +77,14 @@
 @interface WhatsAppAppDelegate : UIResponder <UIApplicationDelegate>
 - (void)applicationUserDidTakeScreenshot:(id)notification;
 @end
+
+@interface WAContextualizePermissionsHelper : NSObject
++ (BOOL)isPermissionPrimerEnabledWithUserContext:(id)arg1;
++ (BOOL)isPermissionPrimerV2EnabledWithUserContext:(id)arg1;
++ (BOOL)isContactsPrimerEnabledWithUserContext:(id)arg1;
+@end
+
+@interface _TtC26WAContextualizePermissions48ContextualizePermissionsBasePrimerViewController : UIViewController
+- (void)startLoadingState;
+- (void)endLoadingStateWithCompletion:(id)arg1;
+@end
