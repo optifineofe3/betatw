@@ -323,7 +323,7 @@
 
 %end
 
-#pragma mark - 8. Tweak Menu Trigger (Long-press on Help and Feedback)
+#pragma mark - 8. Tweak Menu Trigger (Long-press on Help and Feedback) & Clean UI
 
 static NSString *findTextRecursively(UIView *view) {
     if ([view isKindOfClass:[UILabel class]]) {
@@ -341,17 +341,77 @@ static NSString *findTextRecursively(UIView *view) {
     return nil;
 }
 
+static BOOL isMetaTrashString(NSString *str) {
+    if (!str || str.length == 0) return NO;
+    NSString *s = [str lowercaseString];
+    if ([s containsString:@"subscription"] || [s containsString:@"подписк"]) return YES;
+    if ([s containsString:@"account center"] || [s containsString:@"accounts center"] ||
+        [s containsString:@"центр аккаунтов"] || [s containsString:@"центр учетных записей"]) return YES;
+    if ([s containsString:@"also from meta"] || [s containsString:@"from meta"] || [s containsString:@"от meta"]) return YES;
+    return NO;
+}
+
+static BOOL isMetaTrashRow(id row) {
+    if (!row) return NO;
+    if ([row respondsToSelector:@selector(text)]) {
+        NSString *t = [row text];
+        if (isMetaTrashString(t)) return YES;
+    }
+    if ([row respondsToSelector:@selector(detailText)]) {
+        NSString *t = [row detailText];
+        if (isMetaTrashString(t)) return YES;
+    }
+    if ([row respondsToSelector:@selector(cell)]) {
+        UITableViewCell *c = [row cell];
+        if (c) {
+            NSString *cellText = c.textLabel.text ?: findTextRecursively(c.contentView);
+            if (isMetaTrashString(cellText)) return YES;
+        }
+    }
+    return NO;
+}
+
+static void recursivelyHideMetaAI(UIView *view) {
+    if (!view) return;
+    NSString *clsName = NSStringFromClass([view class]);
+    if ([clsName containsString:@"FloatingActionButton"] ||
+        [clsName containsString:@"MetaAI"] ||
+        [clsName containsString:@"WAAIViews"]) {
+        view.hidden = YES;
+        view.alpha = 0.0;
+        view.userInteractionEnabled = NO;
+    }
+    NSString *acc = view.accessibilityLabel ?: @"";
+    if ([acc rangeOfString:@"Meta AI" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+        view.hidden = YES;
+        view.alpha = 0.0;
+        view.userInteractionEnabled = NO;
+    }
+    for (UIView *sub in view.subviews) {
+        recursivelyHideMetaAI(sub);
+    }
+}
+
 %hook WASettingsViewController
 
 - (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
     %orig;
     
-    // Inspect cell text for Help / Help and Feedback
+    // Inspect cell text for Help / Help and Feedback or Meta Trash
     NSString *cellText = cell.textLabel.text ?: @"";
     if (cellText.length == 0) {
         cellText = findTextRecursively(cell.contentView) ?: @"";
     }
     
+    // Hide Meta trash rows (Subscriptions, Accounts Center, Also from Meta)
+    if (WATweakGetBool(kHideMetaTrash, YES) && isMetaTrashString(cellText)) {
+        cell.hidden = YES;
+        cell.contentView.hidden = YES;
+        cell.clipsToBounds = YES;
+        return;
+    }
+    
+    // Help / Feedback long-press gesture for opening tweak menu
     BOOL isHelp = [cellText rangeOfString:@"Help" options:NSCaseInsensitiveSearch].location != NSNotFound ||
                   [cellText rangeOfString:@"Помощь" options:NSCaseInsensitiveSearch].location != NSNotFound ||
                   [cellText rangeOfString:@"Feedback" options:NSCaseInsensitiveSearch].location != NSNotFound ||
@@ -374,6 +434,77 @@ static NSString *findTextRecursively(UIView *view) {
     }
 }
 
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
+            id row = [self rowAtIndexPath:indexPath];
+            if (isMetaTrashRow(row)) {
+                return CGFLOAT_MIN;
+            }
+        }
+    }
+    return %orig;
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        [self watweak_cleanMetaTrash];
+    }
+}
+
+%new
+- (void)watweak_cleanMetaTrash {
+    if ([self respondsToSelector:@selector(sections)]) {
+        NSArray *secs = [self sections];
+        NSMutableArray *cleanSecs = [NSMutableArray array];
+        BOOL modified = NO;
+        for (WATableSection *sec in secs) {
+            if ([sec respondsToSelector:@selector(rows)]) {
+                NSMutableArray *cleanRows = [NSMutableArray array];
+                for (id row in sec.rows) {
+                    if (isMetaTrashRow(row)) {
+                        modified = YES;
+                        continue;
+                    }
+                    [cleanRows addObject:row];
+                }
+                if (cleanRows.count > 0) {
+                    if (isMetaTrashString(sec.headerTitle) || isMetaTrashString(sec.footerTitle)) {
+                        modified = YES;
+                    } else {
+                        if (cleanRows.count != sec.rows.count) {
+                            [sec setRows:cleanRows];
+                            modified = YES;
+                        }
+                        [cleanSecs addObject:sec];
+                    }
+                } else {
+                    modified = YES;
+                }
+            } else {
+                [cleanSecs addObject:sec];
+            }
+        }
+        if (modified) {
+            [self setSections:cleanSecs];
+            if ([self respondsToSelector:@selector(tableView)]) {
+                [[self tableView] reloadData];
+            }
+        }
+    }
+    
+    if ([self respondsToSelector:@selector(tableView)]) {
+        UITableView *tv = [self tableView];
+        if (tv.tableFooterView) {
+            NSString *footerCls = NSStringFromClass([tv.tableFooterView class]);
+            if ([footerCls containsString:@"FOA"] || [footerCls containsString:@"Meta"] || [footerCls containsString:@"Bridge"] || [footerCls containsString:@"HScroll"]) {
+                tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+            }
+        }
+    }
+}
+
 %new
 - (void)watweak_openSettingsFromLongPress:(UILongPressGestureRecognizer *)sender {
     if (sender.state == UIGestureRecognizerStateBegan) {
@@ -389,3 +520,358 @@ static NSString *findTextRecursively(UIView *view) {
 }
 
 %end
+
+#pragma mark - 9. Clean UI & Anti-Meta AI
+
+%hook _TtC9WAAIViews34FloatingActionButtonViewController
+
+- (void)viewDidLoad {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+    }
+}
+
+%end
+
+%hook _TtC9WAAIViews29FloatingActionButtonViewModel
+
+- (BOOL)isFloatingActionButtonVisible {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+%hook WAChatListViewController
+
+- (BOOL)metaAIFloatingButtonEnabled {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)metaAIFloatingButtonRefactorEnabled {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isMetaAIInTabEnabled {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        if ([self respondsToSelector:@selector(metaAIFloatingButton)]) {
+            UIView *btn = [self metaAIFloatingButton];
+            if ([btn isKindOfClass:[UIView class]]) {
+                btn.hidden = YES;
+                btn.alpha = 0.0;
+                btn.userInteractionEnabled = NO;
+            }
+        }
+        recursivelyHideMetaAI(self.view);
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        if ([self respondsToSelector:@selector(metaAIFloatingButton)]) {
+            UIView *btn = [self metaAIFloatingButton];
+            if ([btn isKindOfClass:[UIView class]]) {
+                btn.hidden = YES;
+                btn.alpha = 0.0;
+                btn.userInteractionEnabled = NO;
+            }
+        }
+        recursivelyHideMetaAI(self.view);
+    }
+}
+
+%end
+
+%hook _TtC17WAFOABridgesViews36WAFOAHScrollCollectionViewController
+
+- (void)viewDidLoad {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+    }
+}
+
+%end
+
+%hook WAProfileViewController
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        if ([self respondsToSelector:@selector(sections)]) {
+            NSArray *secs = [self sections];
+            NSMutableArray *cleanSecs = [NSMutableArray array];
+            BOOL modified = NO;
+            for (WATableSection *sec in secs) {
+                if ([sec respondsToSelector:@selector(rows)]) {
+                    NSMutableArray *cleanRows = [NSMutableArray array];
+                    for (id row in sec.rows) {
+                        if (isMetaTrashRow(row)) {
+                            modified = YES;
+                            continue;
+                        }
+                        [cleanRows addObject:row];
+                    }
+                    if (cleanRows.count > 0) {
+                        if (cleanRows.count != sec.rows.count) {
+                            [sec setRows:cleanRows];
+                            modified = YES;
+                        }
+                        [cleanSecs addObject:sec];
+                    } else {
+                        modified = YES;
+                    }
+                } else {
+                    [cleanSecs addObject:sec];
+                }
+            }
+            if (modified) {
+                [self setSections:cleanSecs];
+                if ([self respondsToSelector:@selector(tableView)]) {
+                    [[self tableView] reloadData];
+                }
+            }
+        }
+    }
+}
+
+%end
+
+#pragma mark - 10. Privacy & Telemetry Blocking
+
+static BOOL isTelemetryURL(NSURL *url) {
+    if (!url) return NO;
+    NSString *host = [[url host] lowercaseString] ?: @"";
+    NSString *path = [[url path] lowercaseString] ?: @"";
+    
+    // Whitelist core WhatsApp communication endpoints
+    if ([host containsString:@"whatsapp.net"] || [host containsString:@"whatsapp.com"]) {
+        if (![path containsString:@"crash_reports"] && 
+            ![path containsString:@"/falco"] && 
+            ![path containsString:@"logging"]) {
+            return NO;
+        }
+    }
+    
+    // Meta / Facebook analytics, tracking & FOA bridges
+    if ([host containsString:@"graph.facebook.com"] ||
+        [host containsString:@"graph.instagram.com"] ||
+        [host containsString:@"edge-mqtt.facebook.com"] ||
+        [host containsString:@"meta.privacy-gateway.cloudflare.com"] ||
+        [host containsString:@"teellm.meta.com"] ||
+        [path containsString:@"logging_client_events"] ||
+        [path containsString:@"/falco"]) {
+        return YES;
+    }
+    
+    // Google Analytics / Firebase / Crashlytics
+    if ([host containsString:@"app-measurement.com"] ||
+        [host containsString:@"google-analytics.com"] ||
+        [host containsString:@"crashlytics.com"] ||
+        [host containsString:@"firebaseinstallations.googleapis.com"] ||
+        [host containsString:@"firebaselogging.googleapis.com"]) {
+        return YES;
+    }
+    
+    // Crash and client event telemetry endpoints
+    if ([path containsString:@"crash_reports"] || [path containsString:@"client_event"]) {
+        return YES;
+    }
+    
+    return NO;
+}
+
+@interface WATweakTelemetryBlockerProtocol : NSURLProtocol
+@end
+
+@implementation WATweakTelemetryBlockerProtocol
+
++ (BOOL)canInitWithRequest:(NSURLRequest *)request {
+    if (!WATweakGetBool(kDisableTelemetry, YES)) {
+        return NO;
+    }
+    return isTelemetryURL(request.URL);
+}
+
++ (NSURLRequest *)canonicalRequestForRequest:(NSURLRequest *)request {
+    return request;
+}
+
+- (void)startLoading {
+    NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL
+                                                              statusCode:200
+                                                             HTTPVersion:@"HTTP/1.1"
+                                                            headerFields:@{@"Content-Length": @"0"}];
+    [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
+    [self.client URLProtocolDidFinishLoading:self];
+}
+
+- (void)stopLoading {
+}
+
+@end
+
+%hook NSURLSessionConfiguration
+
+- (NSArray<Class> *)protocolClasses {
+    NSArray *orig = %orig;
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        NSMutableArray *arr = [orig mutableCopy] ?: [NSMutableArray array];
+        if (![arr containsObject:[WATweakTelemetryBlockerProtocol class]]) {
+            [arr insertObject:[WATweakTelemetryBlockerProtocol class] atIndex:0];
+        }
+        return arr;
+    }
+    return orig;
+}
+
+%end
+
+%hook WAFieldStats
+
+- (void)logEvent:(id)arg1 {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)logEvent:(id)arg1 weight:(NSInteger)arg2 {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)logEvent:(id)arg1 weight:(NSInteger)arg2 eventObject:(id)arg3 {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)logEvent:(id)arg1 samplingRate:(id)arg2 {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)uploadStatsWithCompletion:(id)completion {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        if (completion) {
+            void (^block)(BOOL) = (void (^)(BOOL))completion;
+            block(YES);
+        }
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook WALogUploader
+
+- (void)uploadCrashLogsForAllDirectories {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)uploadCriticalAndStallLogsForAllDirectories {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)uploadLogs:(id)arg1 {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)uploadLog:(id)arg1 logUploadRequest:(id)arg2 withCompletion:(id)arg3 {
+    if (WATweakGetBool(kDisableTelemetry, YES)) {
+        if (arg3) {
+            void (^block)(BOOL, NSError *) = (void (^)(BOOL, NSError *))arg3;
+            block(YES, nil);
+        }
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%ctor {
+    @autoreleasepool {
+        [NSURLProtocol registerClass:[WATweakTelemetryBlockerProtocol class]];
+    }
+}

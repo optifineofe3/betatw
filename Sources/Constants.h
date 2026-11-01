@@ -10,6 +10,9 @@
 #define kUnlimitedViewOnce             @"watweak_unlimited_view_once"
 #define kDisableScreenshotDetection    @"watweak_disable_screenshot_detection"
 #define kDisableScreenRecordingPause   @"watweak_disable_screen_recording_pause"
+#define kHideMetaAI                    @"watweak_hide_meta_ai"
+#define kHideMetaTrash                 @"watweak_hide_meta_trash"
+#define kDisableTelemetry              @"watweak_disable_telemetry"
 
 static inline BOOL WATweakGetBool(NSString *key, BOOL defaultVal) {
     id val = [[NSUserDefaults standardUserDefaults] objectForKey:key];

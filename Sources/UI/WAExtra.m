@@ -91,7 +91,7 @@
 #pragma mark - UITableViewDataSource
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 5;
+    return 6;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -101,6 +101,7 @@
         case 2: return 2; // Read Receipts
         case 3: return 2; // Anti-Revoke & View-Once
         case 4: return 2; // Security & Screenshots
+        case 5: return 3; // Clean UI & Anti-Telemetry
         default: return 0;
     }
 }
@@ -112,6 +113,7 @@
         case 2: return WALoc(@"READ_RECEIPTS_HEADER");
         case 3: return WALoc(@"ANTI_REVOKE_HEADER");
         case 4: return WALoc(@"SECURITY_HEADER");
+        case 5: return WALoc(@"CLEAN_UI_HEADER");
         default: return nil;
     }
 }
@@ -190,6 +192,23 @@
             title = WALoc(@"DISABLE_SCREEN_RECORDING_PAUSE_TITLE");
             subtitle = WALoc(@"DISABLE_SCREEN_RECORDING_PAUSE_SUBTITLE");
             prefKey = kDisableScreenRecordingPause;
+            defaultVal = YES;
+        }
+    } else if (indexPath.section == 5) {
+        if (indexPath.row == 0) {
+            title = WALoc(@"HIDE_META_AI_TITLE");
+            subtitle = WALoc(@"HIDE_META_AI_SUBTITLE");
+            prefKey = kHideMetaAI;
+            defaultVal = YES;
+        } else if (indexPath.row == 1) {
+            title = WALoc(@"HIDE_META_TRASH_TITLE");
+            subtitle = WALoc(@"HIDE_META_TRASH_SUBTITLE");
+            prefKey = kHideMetaTrash;
+            defaultVal = YES;
+        } else {
+            title = WALoc(@"DISABLE_TELEMETRY_TITLE");
+            subtitle = WALoc(@"DISABLE_TELEMETRY_SUBTITLE");
+            prefKey = kDisableTelemetry;
             defaultVal = YES;
         }
     }

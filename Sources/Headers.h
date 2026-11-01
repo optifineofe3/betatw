@@ -146,3 +146,56 @@
 
 @interface WAVerificationProfileController : UIViewController
 @end
+
+@interface _TtC9WAAIViews34FloatingActionButtonViewController : UIViewController
+@end
+
+@interface _TtC9WAAIViews29FloatingActionButtonViewModel : NSObject
+- (BOOL)isFloatingActionButtonVisible;
+@end
+
+@interface _TtC17WAFOABridgesViews36WAFOAHScrollCollectionViewController : UIViewController
+@end
+
+@interface WAChatListViewController : UIViewController
+- (BOOL)metaAIFloatingButtonEnabled;
+- (BOOL)metaAIFloatingButtonRefactorEnabled;
+- (BOOL)isMetaAIInTabEnabled;
+- (id)metaAIFloatingButton;
+@end
+
+@interface WAStaticTableViewController : UIViewController
+@property (nonatomic, copy) NSArray *sections;
+- (id)rowAtIndexPath:(NSIndexPath *)indexPath;
+- (id)sectionAtIndex:(NSInteger)index;
+- (UITableView *)tableView;
+- (void)setSections:(NSArray *)sections;
+@end
+
+@interface WATableSection : NSObject
+@property (nonatomic, copy) NSArray *rows;
+@property (nonatomic, copy) NSString *headerTitle;
+@property (nonatomic, copy) NSString *footerTitle;
+- (void)setRows:(NSArray *)rows;
+@end
+
+@interface WATableRow : NSObject
+@property (nonatomic, copy) NSString *text;
+@property (nonatomic, copy) NSString *detailText;
+@property (nonatomic, strong) UITableViewCell *cell;
+@end
+
+@interface WAFieldStats : NSObject
+- (void)logEvent:(id)event;
+- (void)logEvent:(id)event weight:(NSInteger)weight;
+- (void)logEvent:(id)event weight:(NSInteger)weight eventObject:(id)object;
+- (void)logEvent:(id)event samplingRate:(id)samplingRate;
+- (void)uploadStatsWithCompletion:(id)completion;
+@end
+
+@interface WALogUploader : NSObject
+- (void)uploadCrashLogsForAllDirectories;
+- (void)uploadCriticalAndStallLogsForAllDirectories;
+- (void)uploadLogs:(id)logs;
+- (void)uploadLog:(id)log logUploadRequest:(id)req withCompletion:(id)completion;
+@end
