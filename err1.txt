@@ -1,0 +1,80 @@
+Run THEOS_PACKAGE_SCHEME=rootless make clean package FINALPACKAGE=1 STRIP=0
+  
+==> Cleaning…
+> Making all for tweak Tweak…
+==> Compiling Sources/UI/WAExtraLocalization.m (arm64)…
+==> Compiling Sources/UI/WAExtraLocalization.m (arm64e)…
+==> Compiling Sources/fishhook/fishhook.c (arm64e)…
+==> Preprocessing Sources/SideloadFix.xm…
+==> Compiling Sources/UI/WAExtra.m (arm64e)…
+==> Compiling Sources/UI/WAExtra.m (arm64)…
+==> Preprocessing Sources/Hooks.xm…
+==> Compiling Sources/fishhook/fishhook.c (arm64)…
+==> Preprocessing Sources/SideloadFix.xm…
+==> Compiling Sources/Logger.mm (arm64e)…
+==> Compiling Sources/Logger.mm (arm64)…
+==> Preprocessing Sources/Hooks.xm…
+Sources/Hooks.xm:440:28: error: no visible @interface for 'WASettingsViewController' declares the selector 'rowAtIndexPath:'
+==> Compiling Sources/Hooks.xm (arm64e)…
+  440 |             id row = [self rowAtIndexPath:indexPath];
+      |                       ~~~~ ^~~~~~~~~~~~~~
+Sources/Hooks.xm:452:15: error: no visible @interface for 'WASettingsViewController' declares the selector 'watweak_cleanMetaTrash'
+  452 |         [self watweak_cleanMetaTrash];
+      |          ~~~~ ^~~~~~~~~~~~~~~~~~~~~~
+Sources/Hooks.xm:459:31: error: no visible @interface for 'WASettingsViewController' declares the selector 'sections'
+==> Compiling Sources/SideloadFix.xm (arm64e)…
+  459 |         NSArray *secs = [self sections];
+rm /Users/runner/work/betatw/betatw/.theos/obj/arm64e/Sources/Hooks.xm.mm
+      |                          ~~~~ ^~~~~~~~
+Sources/Hooks.xm:490:19: error: no visible @interface for 'WASettingsViewController' declares the selector 'setSections:'
+  490 |             [self setSections:cleanSecs];
+      |              ~~~~ ^~~~~~~~~~~
+Sources/Hooks.xm:666:35: error: no visible @interface for 'WAProfileViewController' declares the selector 'sections'
+  666 |             NSArray *secs = [self sections];
+      |                              ~~~~ ^~~~~~~~
+Sources/Hooks.xm:693:23: error: no visible @interface for 'WAProfileViewController' declares the selector 'setSections:'
+  693 |                 [self setSections:cleanSecs];
+      |                  ~~~~ ^~~~~~~~~~~
+Sources/Hooks.xm:695:28: error: no visible @interface for 'WAProfileViewController' declares the selector 'tableView'
+  695 |                     [[self tableView] reloadData];
+      |                       ~~~~ ^~~~~~~~~
+7 errors generated.
+make[3]: *** [/Users/runner/work/betatw/betatw/theos/makefiles/instance/rules.mk:420: /Users/runner/work/betatw/betatw/.theos/obj/arm64e/Sources/Hooks.xm.5c9f0116.o] Error 1
+make[3]: *** Waiting for unfinished jobs....
+make[2]: *** [/Users/runner/work/betatw/betatw/theos/makefiles/instance/library.mk:52: /Users/runner/work/betatw/betatw/.theos/obj/arm64e/Tweak.dylib] Error 2
+make[2]: *** Waiting for unfinished jobs....
+==> Compiling Sources/SideloadFix.xm (arm64)…
+Sources/Hooks.xm:440:28: error: no visible @interface for 'WASettingsViewController' declares the selector 'rowAtIndexPath:'
+==> Compiling Sources/Hooks.xm (arm64)…
+  440 |             id row = [self rowAtIndexPath:indexPath];
+rm /Users/runner/work/betatw/betatw/.theos/obj/arm64/Sources/Hooks.xm.mm
+      |                       ~~~~ ^~~~~~~~~~~~~~
+Sources/Hooks.xm:452:15: error: no visible @interface for 'WASettingsViewController' declares the selector 'watweak_cleanMetaTrash'
+  452 |         [self watweak_cleanMetaTrash];
+      |          ~~~~ ^~~~~~~~~~~~~~~~~~~~~~
+Sources/Hooks.xm:459:31: error: no visible @interface for 'WASettingsViewController' declares the selector 'sections'
+  459 |         NSArray *secs = [self sections];
+      |                          ~~~~ ^~~~~~~~
+Sources/Hooks.xm:490:19: error: no visible @interface for 'WASettingsViewController' declares the selector 'setSections:'
+  490 |             [self setSections:cleanSecs];
+      |              ~~~~ ^~~~~~~~~~~
+Sources/Hooks.xm:666:35: error: no visible @interface for 'WAProfileViewController' declares the selector 'sections'
+  666 |             NSArray *secs = [self sections];
+      |                              ~~~~ ^~~~~~~~
+Sources/Hooks.xm:693:23: error: no visible @interface for 'WAProfileViewController' declares the selector 'setSections:'
+  693 |                 [self setSections:cleanSecs];
+      |                  ~~~~ ^~~~~~~~~~~
+Sources/Hooks.xm:695:28: error: no visible @interface for 'WAProfileViewController' declares the selector 'tableView'
+  695 |                     [[self tableView] reloadData];
+      |                       ~~~~ ^~~~~~~~~
+7 errors generated.
+make[3]: *** [/Users/runner/work/betatw/betatw/theos/makefiles/instance/rules.mk:419: /Users/runner/work/betatw/betatw/.theos/obj/arm64/Sources/Hooks.xm.41c07697.o] Error 1
+make[2]: *** [/Users/runner/work/betatw/betatw/theos/makefiles/instance/library.mk:52: /Users/runner/work/betatw/betatw/.theos/obj/arm64/Tweak.dylib] Error 2
+make[1]: *** [/Users/runner/work/betatw/betatw/theos/makefiles/instance/library.mk:37: internal-library-all_] Error 2
+make: *** [/Users/runner/work/betatw/betatw/theos/makefiles/master/rules.mk:146: Tweak.all.tweak.variables] Error 2
+Error: Process completed with exit code 2.
+0s
+0s
+0s
+0s
+0s

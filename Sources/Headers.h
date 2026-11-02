@@ -69,8 +69,30 @@
 - (NSString *)text;
 @end
 
-@interface WASettingsViewController : UIViewController <UITableViewDelegate, UITableViewDataSource>
+@interface WATableSection : NSObject
+@property (nonatomic, copy) NSArray *rows;
+@property (nonatomic, copy) NSString *headerTitle;
+@property (nonatomic, copy) NSString *footerTitle;
+- (void)setRows:(NSArray *)rows;
+@end
+
+@interface WATableRow : NSObject
+@property (nonatomic, copy) NSString *text;
+@property (nonatomic, copy) NSString *detailText;
+@property (nonatomic, strong) UITableViewCell *cell;
+@end
+
+@interface WAStaticTableViewController : UIViewController <UITableViewDelegate, UITableViewDataSource>
+@property (nonatomic, copy) NSArray *sections;
 @property (nonatomic, strong) UITableView *tableView;
+- (id)rowAtIndexPath:(NSIndexPath *)indexPath;
+- (id)sectionAtIndex:(NSInteger)index;
+- (void)setSections:(NSArray *)sections;
+@end
+
+@interface WASettingsViewController : WAStaticTableViewController
+- (void)watweak_cleanMetaTrash;
+- (void)watweak_openSettingsFromLongPress:(id)sender;
 @end
 
 @interface WAViewOnceMessageViewController : UIViewController
@@ -140,7 +162,7 @@
 - (id)initWithEntitlementsDict:(NSDictionary *)entitlements;
 @end
 
-@interface WAProfileViewController : UIViewController
+@interface WAProfileViewController : WAStaticTableViewController
 - (void)savePushNameIfValid;
 @end
 
@@ -162,27 +184,6 @@
 - (BOOL)metaAIFloatingButtonRefactorEnabled;
 - (BOOL)isMetaAIInTabEnabled;
 - (id)metaAIFloatingButton;
-@end
-
-@interface WAStaticTableViewController : UIViewController
-@property (nonatomic, copy) NSArray *sections;
-- (id)rowAtIndexPath:(NSIndexPath *)indexPath;
-- (id)sectionAtIndex:(NSInteger)index;
-- (UITableView *)tableView;
-- (void)setSections:(NSArray *)sections;
-@end
-
-@interface WATableSection : NSObject
-@property (nonatomic, copy) NSArray *rows;
-@property (nonatomic, copy) NSString *headerTitle;
-@property (nonatomic, copy) NSString *footerTitle;
-- (void)setRows:(NSArray *)rows;
-@end
-
-@interface WATableRow : NSObject
-@property (nonatomic, copy) NSString *text;
-@property (nonatomic, copy) NSString *detailText;
-@property (nonatomic, strong) UITableViewCell *cell;
 @end
 
 @interface WAFieldStats : NSObject

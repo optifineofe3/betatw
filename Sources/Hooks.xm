@@ -446,13 +446,6 @@ static void recursivelyHideMetaAI(UIView *view) {
     return %orig;
 }
 
-- (void)viewWillAppear:(BOOL)animated {
-    %orig;
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        [self watweak_cleanMetaTrash];
-    }
-}
-
 %new
 - (void)watweak_cleanMetaTrash {
     if ([self respondsToSelector:@selector(sections)]) {
@@ -502,6 +495,13 @@ static void recursivelyHideMetaAI(UIView *view) {
                 tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
             }
         }
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        [self watweak_cleanMetaTrash];
     }
 }
 
