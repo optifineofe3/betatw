@@ -353,43 +353,88 @@ static BOOL isMetaTrashString(NSString *str) {
 
 static BOOL isMetaTrashRow(id row) {
     if (!row) return NO;
-    if ([row respondsToSelector:@selector(text)]) {
-        NSString *t = [row text];
-        if (isMetaTrashString(t)) return YES;
-    }
-    if ([row respondsToSelector:@selector(detailText)]) {
-        NSString *t = [row detailText];
-        if (isMetaTrashString(t)) return YES;
-    }
-    if ([row respondsToSelector:@selector(cell)]) {
-        UITableViewCell *c = [row cell];
-        if (c) {
-            NSString *cellText = c.textLabel.text ?: findTextRecursively(c.contentView);
-            if (isMetaTrashString(cellText)) return YES;
+    @try {
+        if ([row respondsToSelector:@selector(text)]) {
+            id t = [row performSelector:@selector(text)];
+            if ([t isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)t)) return YES;
         }
-    }
+        if ([row respondsToSelector:@selector(cell)]) {
+            id c = [row performSelector:@selector(cell)];
+            if ([c isKindOfClass:[UITableViewCell class]]) {
+                UITableViewCell *cell = (UITableViewCell *)c;
+                NSString *cellText = cell.textLabel.text ?: findTextRecursively(cell.contentView);
+                if (isMetaTrashString(cellText)) return YES;
+            }
+        }
+    } @catch (NSException *e) {}
     return NO;
 }
 
 static void recursivelyHideMetaAI(UIView *view) {
     if (!view) return;
-    NSString *clsName = NSStringFromClass([view class]);
-    if ([clsName containsString:@"FloatingActionButton"] ||
-        [clsName containsString:@"MetaAI"] ||
-        [clsName containsString:@"WAAIViews"]) {
-        view.hidden = YES;
-        view.alpha = 0.0;
-        view.userInteractionEnabled = NO;
-    }
-    NSString *acc = view.accessibilityLabel ?: @"";
-    if ([acc rangeOfString:@"Meta AI" options:NSCaseInsensitiveSearch].location != NSNotFound) {
-        view.hidden = YES;
-        view.alpha = 0.0;
-        view.userInteractionEnabled = NO;
-    }
-    for (UIView *sub in view.subviews) {
-        recursivelyHideMetaAI(sub);
-    }
+    @try {
+        NSString *clsName = NSStringFromClass([view class]);
+        if ([clsName containsString:@"FloatingActionButton"] ||
+            [clsName containsString:@"MetaAI"] ||
+            [clsName containsString:@"WAAIViews"] ||
+            [clsName containsString:@"AIHeader"] ||
+            [clsName containsString:@"AIBadge"]) {
+            view.hidden = YES;
+            view.alpha = 0.0;
+            view.userInteractionEnabled = NO;
+        }
+        
+        if ([view isKindOfClass:[UILabel class]]) {
+            NSString *txt = [(UILabel *)view text] ?: @"";
+            if ([txt rangeOfString:@"Meta AI" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                view.hidden = YES;
+                view.alpha = 0.0;
+                view.userInteractionEnabled = NO;
+            }
+        }
+        
+        NSString *acc = view.accessibilityLabel ?: @"";
+        if ([acc rangeOfString:@"Meta AI" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            view.hidden = YES;
+            view.alpha = 0.0;
+            view.userInteractionEnabled = NO;
+        }
+        
+        for (UIView *sub in view.subviews) {
+            recursivelyHideMetaAI(sub);
+        }
+    } @catch (NSException *e) {}
+}
+
+static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
+    if (!vc || !WATweakGetBool(kHideMetaAI, YES)) return;
+    @try {
+        NSMutableArray *filtered = [NSMutableArray array];
+        for (UIBarButtonItem *item in vc.navigationItem.rightBarButtonItems) {
+            BOOL isMetaAI = NO;
+            SEL act = item.action;
+            NSString *selName = act ? NSStringFromSelector(act) : @"";
+            if ([selName containsString:@"metaAI"] || [selName containsString:@"MetaAI"]) {
+                isMetaAI = YES;
+            }
+            NSString *label = item.accessibilityLabel ?: @"";
+            if ([label rangeOfString:@"Meta AI" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                isMetaAI = YES;
+            }
+            if (item.customView) {
+                NSString *cvCls = NSStringFromClass([item.customView class]);
+                if ([cvCls containsString:@"MetaAI"] || [cvCls containsString:@"AI"]) {
+                    isMetaAI = YES;
+                }
+            }
+            if (!isMetaAI) {
+                [filtered addObject:item];
+            }
+        }
+        if (filtered.count != vc.navigationItem.rightBarButtonItems.count) {
+            vc.navigationItem.rightBarButtonItems = filtered;
+        }
+    } @catch (NSException *e) {}
 }
 
 %hook WASettingsViewController
@@ -436,72 +481,47 @@ static void recursivelyHideMetaAI(UIView *view) {
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
-        if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
-            id row = [self rowAtIndexPath:indexPath];
-            if (isMetaTrashRow(row)) {
-                return CGFLOAT_MIN;
+        @try {
+            if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
+                id row = [self rowAtIndexPath:indexPath];
+                if (isMetaTrashRow(row)) {
+                    return CGFLOAT_MIN;
+                }
             }
-        }
+        } @catch (NSException *e) {}
     }
     return %orig;
 }
 
-%new
-- (void)watweak_cleanMetaTrash {
-    if ([self respondsToSelector:@selector(sections)]) {
-        NSArray *secs = [self sections];
-        NSMutableArray *cleanSecs = [NSMutableArray array];
-        BOOL modified = NO;
-        for (WATableSection *sec in secs) {
-            if ([sec respondsToSelector:@selector(rows)]) {
-                NSMutableArray *cleanRows = [NSMutableArray array];
-                for (id row in sec.rows) {
-                    if (isMetaTrashRow(row)) {
-                        modified = YES;
-                        continue;
-                    }
-                    [cleanRows addObject:row];
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
+                id row = [self rowAtIndexPath:indexPath];
+                if (isMetaTrashRow(row)) {
+                    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+                    return;
                 }
-                if (cleanRows.count > 0) {
-                    if (isMetaTrashString(sec.headerTitle) || isMetaTrashString(sec.footerTitle)) {
-                        modified = YES;
-                    } else {
-                        if (cleanRows.count != sec.rows.count) {
-                            [sec setRows:cleanRows];
-                            modified = YES;
-                        }
-                        [cleanSecs addObject:sec];
-                    }
-                } else {
-                    modified = YES;
-                }
-            } else {
-                [cleanSecs addObject:sec];
             }
-        }
-        if (modified) {
-            [self setSections:cleanSecs];
-            if ([self respondsToSelector:@selector(tableView)]) {
-                [[self tableView] reloadData];
-            }
-        }
+        } @catch (NSException *e) {}
     }
-    
-    if ([self respondsToSelector:@selector(tableView)]) {
-        UITableView *tv = [self tableView];
-        if (tv.tableFooterView) {
-            NSString *footerCls = NSStringFromClass([tv.tableFooterView class]);
-            if ([footerCls containsString:@"FOA"] || [footerCls containsString:@"Meta"] || [footerCls containsString:@"Bridge"] || [footerCls containsString:@"HScroll"]) {
-                tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
-            }
-        }
-    }
+    %orig;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
     if (WATweakGetBool(kHideMetaTrash, YES)) {
-        [self watweak_cleanMetaTrash];
+        @try {
+            if ([self respondsToSelector:@selector(tableView)]) {
+                UITableView *tv = [self tableView];
+                if (tv.tableFooterView) {
+                    NSString *footerCls = NSStringFromClass([tv.tableFooterView class]);
+                    if ([footerCls containsString:@"FOA"] || [footerCls containsString:@"Meta"] || [footerCls containsString:@"Bridge"] || [footerCls containsString:@"HScroll"]) {
+                        tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+                    }
+                }
+            }
+        } @catch (NSException *e) {}
     }
 }
 
@@ -516,6 +536,36 @@ static void recursivelyHideMetaAI(UIView *view) {
         UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:tweakVC];
         nav.modalPresentationStyle = UIModalPresentationPageSheet;
         [self presentViewController:nav animated:YES completion:nil];
+    }
+}
+
+%end
+
+%hook WAProfileViewController
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
+                id row = [self rowAtIndexPath:indexPath];
+                if (isMetaTrashRow(row)) {
+                    return CGFLOAT_MIN;
+                }
+            }
+        } @catch (NSException *e) {}
+    }
+    return %orig;
+}
+
+- (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        NSString *cellText = cell.textLabel.text ?: findTextRecursively(cell.contentView);
+        if (isMetaTrashString(cellText)) {
+            cell.hidden = YES;
+            cell.contentView.hidden = YES;
+            cell.clipsToBounds = YES;
+        }
     }
 }
 
@@ -591,9 +641,60 @@ static void recursivelyHideMetaAI(UIView *view) {
     return %orig;
 }
 
+- (id)navBarMetaAIButton {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (id)chatListNavigationMetaAIButton {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (BOOL)chatListNavigationMetaAIFloatingButtonEnabled {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isChatListMetaAIEntryPointEnabled {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (void)addMetaAIFloatingButtonAsSubviewIfNeeded {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)setupMetaAIFloatingButton {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)viewDidLoad {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        watweak_filterChatListNavBarButtons(self);
+        recursivelyHideMetaAI(self.view);
+    }
+}
+
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
     if (WATweakGetBool(kHideMetaAI, YES)) {
+        watweak_filterChatListNavBarButtons(self);
         if ([self respondsToSelector:@selector(metaAIFloatingButton)]) {
             UIView *btn = [self metaAIFloatingButton];
             if ([btn isKindOfClass:[UIView class]]) {
@@ -606,9 +707,18 @@ static void recursivelyHideMetaAI(UIView *view) {
     }
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        watweak_filterChatListNavBarButtons(self);
+        recursivelyHideMetaAI(self.view);
+    }
+}
+
 - (void)viewDidLayoutSubviews {
     %orig;
     if (WATweakGetBool(kHideMetaAI, YES)) {
+        watweak_filterChatListNavBarButtons(self);
         if ([self respondsToSelector:@selector(metaAIFloatingButton)]) {
             UIView *btn = [self metaAIFloatingButton];
             if ([btn isKindOfClass:[UIView class]]) {
@@ -618,6 +728,13 @@ static void recursivelyHideMetaAI(UIView *view) {
             }
         }
         recursivelyHideMetaAI(self.view);
+    }
+}
+
+- (void)updateRightBarButtonItems {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        watweak_filterChatListNavBarButtons(self);
     }
 }
 
@@ -657,45 +774,63 @@ static void recursivelyHideMetaAI(UIView *view) {
 
 %end
 
-%hook WAProfileViewController
+%hook WAMetaAIHeaderView
+
+- (id)initWithFrame:(CGRect)frame {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self = %orig(CGRectZero);
+        if (self) {
+            self.hidden = YES;
+            self.alpha = 0.0;
+            self.userInteractionEnabled = NO;
+        }
+        return self;
+    }
+    return %orig;
+}
+
+- (void)didMoveToWindow {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+        self.userInteractionEnabled = NO;
+        self.frame = CGRectZero;
+    }
+}
+
+- (void)didMoveToSuperview {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+        self.userInteractionEnabled = NO;
+        self.frame = CGRectZero;
+    }
+}
+
+%end
+
+%hook WASearchControllerViewController
+
+- (void)viewDidLoad {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        recursivelyHideMetaAI(self.view);
+    }
+}
 
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        if ([self respondsToSelector:@selector(sections)]) {
-            NSArray *secs = [self sections];
-            NSMutableArray *cleanSecs = [NSMutableArray array];
-            BOOL modified = NO;
-            for (WATableSection *sec in secs) {
-                if ([sec respondsToSelector:@selector(rows)]) {
-                    NSMutableArray *cleanRows = [NSMutableArray array];
-                    for (id row in sec.rows) {
-                        if (isMetaTrashRow(row)) {
-                            modified = YES;
-                            continue;
-                        }
-                        [cleanRows addObject:row];
-                    }
-                    if (cleanRows.count > 0) {
-                        if (cleanRows.count != sec.rows.count) {
-                            [sec setRows:cleanRows];
-                            modified = YES;
-                        }
-                        [cleanSecs addObject:sec];
-                    } else {
-                        modified = YES;
-                    }
-                } else {
-                    [cleanSecs addObject:sec];
-                }
-            }
-            if (modified) {
-                [self setSections:cleanSecs];
-                if ([self respondsToSelector:@selector(tableView)]) {
-                    [[self tableView] reloadData];
-                }
-            }
-        }
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        recursivelyHideMetaAI(self.view);
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        recursivelyHideMetaAI(self.view);
     }
 }
 

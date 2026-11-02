@@ -91,7 +91,6 @@
 @end
 
 @interface WASettingsViewController : WAStaticTableViewController
-- (void)watweak_cleanMetaTrash;
 - (void)watweak_openSettingsFromLongPress:(id)sender;
 @end
 
@@ -184,6 +183,19 @@
 - (BOOL)metaAIFloatingButtonRefactorEnabled;
 - (BOOL)isMetaAIInTabEnabled;
 - (id)metaAIFloatingButton;
+- (id)navBarMetaAIButton;
+- (id)chatListNavigationMetaAIButton;
+- (BOOL)chatListNavigationMetaAIFloatingButtonEnabled;
+- (BOOL)isChatListMetaAIEntryPointEnabled;
+- (void)updateRightBarButtonItems;
+- (void)addMetaAIFloatingButtonAsSubviewIfNeeded;
+- (void)setupMetaAIFloatingButton;
+@end
+
+@interface WAMetaAIHeaderView : UIView
+@end
+
+@interface WASearchControllerViewController : UIViewController
 @end
 
 @interface WAFieldStats : NSObject
