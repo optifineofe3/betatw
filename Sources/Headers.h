@@ -88,7 +88,6 @@
 - (id)rowAtIndexPath:(NSIndexPath *)indexPath;
 - (id)sectionAtIndex:(NSInteger)index;
 - (void)setSections:(NSArray *)sections;
-- (void)addSection:(id)section;
 @end
 
 @interface WASettingsViewController : WAStaticTableViewController
@@ -96,8 +95,6 @@
 - (void)addSubscriptionsRowToSection:(id)arg1;
 - (BOOL)isSubscriptionsRowPresentInTable;
 - (BOOL)isSubscriptionsRowOffered;
-- (id)makeAccountsCenterSection;
-- (id)makeAlsoFromMetaSection;
 - (void)watweak_openSettingsFromLongPress:(id)sender;
 @end
 
@@ -170,8 +167,6 @@
 
 @interface WAProfileViewController : WAStaticTableViewController
 - (void)savePushNameIfValid;
-- (void)addSubscriptionsRowIfEligibleToSection:(id)arg1;
-- (void)addSubscriptionsRowToSection:(id)arg1;
 @end
 
 @interface WAVerificationProfileController : UIViewController

@@ -362,6 +362,38 @@ static BOOL isMetaTrashRow(id row) {
             id d = [row performSelector:@selector(detailText)];
             if ([d isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)d)) return YES;
         }
+        NSString *rowCls = NSStringFromClass([row class]);
+        if ([rowCls containsString:@"FOA"] || [rowCls containsString:@"Bookmark"] || [rowCls containsString:@"AccountsCenter"]) return YES;
+    } @catch (NSException *e) {}
+    return NO;
+}
+
+static BOOL isMetaTrashSection(id section) {
+    if (!section) return NO;
+    @try {
+        NSString *secCls = NSStringFromClass([section class]);
+        if ([secCls containsString:@"FOA"] || [secCls containsString:@"AccountsCenter"]) return YES;
+        if ([section respondsToSelector:@selector(headerTitle)]) {
+            id h = [section performSelector:@selector(headerTitle)];
+            if ([h isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)h)) return YES;
+        }
+        if ([section respondsToSelector:@selector(footerTitle)]) {
+            id f = [section performSelector:@selector(footerTitle)];
+            if ([f isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)f)) return YES;
+        }
+        if ([section respondsToSelector:@selector(rows)]) {
+            NSArray *rows = [section performSelector:@selector(rows)];
+            if ([rows isKindOfClass:[NSArray class]] && rows.count > 0) {
+                BOOL allTrash = YES;
+                for (id r in rows) {
+                    if (!isMetaTrashRow(r)) {
+                        allTrash = NO;
+                        break;
+                    }
+                }
+                if (allTrash) return YES;
+            }
+        }
     } @catch (NSException *e) {}
     return NO;
 }
@@ -435,31 +467,6 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     } @catch (NSException *e) {}
 }
 
-%hook WAStaticTableViewController
-
-- (void)addSection:(id)section {
-    if (!section) return;
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        @try {
-            NSString *secCls = NSStringFromClass([section class]);
-            if ([secCls containsString:@"FOA"] || [secCls containsString:@"Meta"] || [secCls containsString:@"AccountsCenter"]) {
-                return;
-            }
-            if ([section respondsToSelector:@selector(headerTitle)]) {
-                NSString *h = [section performSelector:@selector(headerTitle)];
-                if (isMetaTrashString(h)) return;
-            }
-            if ([section respondsToSelector:@selector(footerTitle)]) {
-                NSString *f = [section performSelector:@selector(footerTitle)];
-                if (isMetaTrashString(f)) return;
-            }
-        } @catch (NSException *e) {}
-    }
-    %orig(section);
-}
-
-%end
-
 %hook WASettingsViewController
 
 - (void)addSubscriptionsRowIfEligibleToSection:(id)arg1 {
@@ -490,18 +497,78 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     return %orig;
 }
 
-- (id)makeAccountsCenterSection {
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
-        return nil;
+        @try {
+            id row = [self rowAtIndexPath:indexPath];
+            if (isMetaTrashRow(row)) return 0.001f;
+            id sec = [self sectionAtIndex:indexPath.section];
+            if (isMetaTrashSection(sec)) return 0.001f;
+        } @catch (NSException *e) {}
     }
     return %orig;
 }
 
-- (id)makeAlsoFromMetaSection {
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
-        return nil;
+        @try {
+            id sec = [self sectionAtIndex:section];
+            if (isMetaTrashSection(sec)) return 0.001f;
+        } @catch (NSException *e) {}
     }
     return %orig;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            id sec = [self sectionAtIndex:section];
+            if (isMetaTrashSection(sec)) return 0.001f;
+        } @catch (NSException *e) {}
+    }
+    return %orig;
+}
+
+- (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            id sec = [self sectionAtIndex:section];
+            if (isMetaTrashSection(sec)) {
+                return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
+            }
+        } @catch (NSException *e) {}
+    }
+    return %orig;
+}
+
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            id sec = [self sectionAtIndex:section];
+            if (isMetaTrashSection(sec)) {
+                return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
+            }
+        } @catch (NSException *e) {}
+    }
+    return %orig;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            id row = [self rowAtIndexPath:indexPath];
+            if (isMetaTrashRow(row)) {
+                [tableView deselectRowAtIndexPath:indexPath animated:NO];
+                return;
+            }
+            id sec = [self sectionAtIndex:indexPath.section];
+            if (isMetaTrashSection(sec)) {
+                [tableView deselectRowAtIndexPath:indexPath animated:NO];
+                return;
+            }
+        } @catch (NSException *e) {}
+    }
+    %orig;
 }
 
 - (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -514,11 +581,53 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     }
     
     // Hide Meta trash rows if any slipped through
-    if (WATweakGetBool(kHideMetaTrash, YES) && isMetaTrashString(cellText)) {
+    BOOL isTrash = NO;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        if (isMetaTrashString(cellText)) {
+            isTrash = YES;
+        } else {
+            NSString *cellCls = NSStringFromClass([cell class]);
+            if ([cellCls containsString:@"FOA"] || [cellCls containsString:@"Bookmark"] || [cellCls containsString:@"AccountsCenter"]) {
+                isTrash = YES;
+            } else {
+                @try {
+                    id row = [self rowAtIndexPath:indexPath];
+                    if (isMetaTrashRow(row)) isTrash = YES;
+                    else {
+                        id sec = [self sectionAtIndex:indexPath.section];
+                        if (isMetaTrashSection(sec)) isTrash = YES;
+                    }
+                } @catch (NSException *e) {}
+            }
+        }
+    }
+    
+    if (isTrash) {
         cell.hidden = YES;
         cell.contentView.hidden = YES;
         cell.clipsToBounds = YES;
+        cell.alpha = 0.0;
+        cell.userInteractionEnabled = NO;
         return;
+    }
+    
+    // Ensure Lists has rounded top corners
+    if ([cellText rangeOfString:@"Lists" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+        [cellText rangeOfString:@"Списки" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+        NSInteger totalRows = 0;
+        @try {
+            totalRows = [tableView numberOfRowsInSection:indexPath.section];
+        } @catch (NSException *e) {}
+        
+        if (totalRows <= 1) {
+            cell.layer.cornerRadius = 12.0;
+            cell.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
+        } else {
+            cell.layer.cornerRadius = 12.0;
+            cell.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+        }
+        cell.layer.masksToBounds = YES;
+        cell.clipsToBounds = YES;
     }
     
     // Help / Feedback long-press gesture for opening tweak menu
@@ -551,7 +660,7 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
                 if (tv.tableFooterView) {
                     NSString *footerCls = NSStringFromClass([tv.tableFooterView class]);
                     if ([footerCls containsString:@"FOA"] || [footerCls containsString:@"Meta"] || [footerCls containsString:@"Bridge"] || [footerCls containsString:@"HScroll"]) {
-                        tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+                        tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
                     }
                 }
             }
@@ -577,20 +686,6 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
 
 %hook WAProfileViewController
 
-- (void)addSubscriptionsRowIfEligibleToSection:(id)arg1 {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        return;
-    }
-    %orig;
-}
-
-- (void)addSubscriptionsRowToSection:(id)arg1 {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        return;
-    }
-    %orig;
-}
-
 - (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
     %orig;
     if (WATweakGetBool(kHideMetaTrash, YES)) {
@@ -599,6 +694,8 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
             cell.hidden = YES;
             cell.contentView.hidden = YES;
             cell.clipsToBounds = YES;
+            cell.alpha = 0.0;
+            cell.userInteractionEnabled = NO;
         }
     }
 }
@@ -899,44 +996,6 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     if (WATweakGetBool(kHideMetaAI, YES)) {
         watweak_filterChatListNavBarButtons(self);
     }
-}
-
-%end
-
-%hook _TtC17WAFOABridgesViews36WAFOAHScrollCollectionViewController
-
-- (void)loadView {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        UIView *v = [[UIView alloc] initWithFrame:CGRectZero];
-        v.hidden = YES;
-        v.alpha = 0.0;
-        v.userInteractionEnabled = NO;
-        self.view = v;
-        return;
-    }
-    %orig;
-}
-
-- (void)viewDidLoad {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        self.view.hidden = YES;
-        self.view.alpha = 0.0;
-        self.view.userInteractionEnabled = NO;
-        [self.view removeFromSuperview];
-        return;
-    }
-    %orig;
-}
-
-- (void)viewWillAppear:(BOOL)animated {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        self.view.hidden = YES;
-        self.view.alpha = 0.0;
-        self.view.userInteractionEnabled = NO;
-        [self.view removeFromSuperview];
-        return;
-    }
-    %orig;
 }
 
 %end
