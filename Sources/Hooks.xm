@@ -4,6 +4,7 @@
 #import "Headers.h"
 #import "Constants.h"
 #import "UI/WAExtra.h"
+#import "UI/MediaSaver.h"
 
 #pragma mark - 1. Media Quality (Uncompressed Photos & Videos)
 
@@ -206,11 +207,143 @@
 
 #pragma mark - 5. Anti-Revoke (Preserve Deleted Messages)
 
+%hook WAChatStorage
+
+- (void)revokeIncomingMessage:(id)message triggeredByMessageWithID:(id)messageID onDate:(id)date outOfOrder:(BOOL)outOfOrder revokedByAdminUserJID:(id)adminJID deferAction:(id)deferAction {
+    if (WATweakGetBool(kAntiRevoke, YES)) {
+        WALog(@"[Tweak] Suppressed revokeIncomingMessage for message: %@", message);
+        @try {
+            if ([message respondsToSelector:@selector(text)]) {
+                NSString *txt = [message text];
+                if (txt && txt.length > 0 && ![txt hasPrefix:@"[DEL] "]) {
+                    if ([message respondsToSelector:@selector(setText:)]) {
+                        [message setText:[NSString stringWithFormat:@"[DEL] %@", txt]];
+                    }
+                }
+            }
+        } @catch (NSException *e) {
+            WALog(@"[Tweak] Exception in revokeIncomingMessage: %@", e);
+        }
+        return;
+    }
+    %orig;
+}
+
+- (void)internalRevokeMessages:(NSArray *)messages triggeredByMessageWithID:(id)messageID onDate:(id)date outgoing:(BOOL)outgoing revokedByAdminUserJID:(id)adminJID botPluginMessagesToDelete:(id)botMsgs beginTransactions:(BOOL)begin commitTransactions:(BOOL)commit {
+    if (WATweakGetBool(kAntiRevoke, YES) && !outgoing) {
+        WALog(@"[Tweak] Suppressed internalRevokeMessages for incoming messages");
+        @try {
+            for (id msg in messages) {
+                if ([msg respondsToSelector:@selector(text)]) {
+                    NSString *txt = [msg text];
+                    if (txt && txt.length > 0 && ![txt hasPrefix:@"[DEL] "]) {
+                        if ([msg respondsToSelector:@selector(setText:)]) {
+                            [msg setText:[NSString stringWithFormat:@"[DEL] %@", txt]];
+                        }
+                    }
+                }
+            }
+        } @catch (NSException *e) {
+            WALog(@"[Tweak] Exception in internalRevokeMessages: %@", e);
+        }
+        return;
+    }
+    %orig;
+}
+
+- (void)deleteExpiredViewOnceContent:(id)messages completion:(id)completion {
+    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
+        WALog(@"[Tweak] Prevented deleteExpiredViewOnceContent");
+        if (completion) {
+            void (^block)(BOOL) = (void (^)(BOOL))completion;
+            block(NO);
+        }
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook WAMessage
+
+- (BOOL)isRevoked {
+    if (WATweakGetBool(kAntiRevoke, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isRevokedByAdmin {
+    if (WATweakGetBool(kAntiRevoke, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isMessageRevoked {
+    if (WATweakGetBool(kAntiRevoke, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isViewOnceOpened {
+    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isViewOnceExpired {
+    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (void)markViewOnceMessageExpiredIfPossible {
+    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (int64_t)viewOnceCount {
+    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
+        return 0;
+    }
+    return %orig;
+}
+
+%end
+
+%hook _TtC25WAMessageSliceViewsStatus30StatusComponentMessageSnapshot
+
+- (BOOL)isMessageRevoked {
+    if (WATweakGetBool(kAntiRevoke, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+%hook _TtC24WAMessageStatusProviding23MessageStatusDescriptor
+
+- (BOOL)snippetHideIfRevoked {
+    if (WATweakGetBool(kAntiRevoke, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
 %hook WAChatViewController
 
 - (void)chatStorageDidRevokeMessages:(id)arg1 {
     if (WATweakGetBool(kAntiRevoke, YES)) {
-        // Suppress message removal from UI
         return;
     }
     %orig;
@@ -241,31 +374,69 @@
     %orig;
 }
 
-%end
-
-#pragma mark - 6. Anti-Self-Destruct (View-Once Bypass)
-
-%hook WAMessage
-
-- (BOOL)isViewOnceOpened {
-    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
-        return NO;
-    }
-    return %orig;
-}
-
-- (void)markViewOnceMessageExpiredIfPossible {
+- (void)presentExpiredViewOnceAlertViewForMessage:(id)arg1 {
     if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
         return;
     }
     %orig;
 }
 
-- (int64_t)viewOnceCount {
-    if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
-        return 0;
+%end
+
+#pragma mark - 6. Media Viewers & MediaSaver Floating Button
+
+%hook WAViewOnceMessageViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+- (void)userDidTakeScreenshot:(id)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
     }
-    return %orig;
+    %orig;
+}
+
+%end
+
+%hook _TtC23WAViewOnceMessageViewer43ViewOnceMessageContentDisplayViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+%end
+
+%hook WAMediaBrowserViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+- (void)userDidTakeScreenshot:(id)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
 }
 
 %end
@@ -275,17 +446,6 @@
 %hook WhatsAppAppDelegate
 
 - (void)applicationUserDidTakeScreenshot:(id)arg1 {
-    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        return;
-    }
-    %orig;
-}
-
-%end
-
-%hook WAViewOnceMessageViewController
-
-- (void)userDidTakeScreenshot:(id)arg1 {
     if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
         return;
     }
@@ -524,6 +684,10 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) return 0.001f;
+            NSArray *secs = [self sections];
+            if (secs && section >= (NSInteger)secs.count - 1) {
+                return 0.001f;
+            }
         } @catch (NSException *e) {}
     }
     return %orig;
@@ -546,6 +710,10 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) {
+                return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
+            }
+            NSArray *secs = [self sections];
+            if (secs && section >= (NSInteger)secs.count - 1) {
                 return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
             }
         } @catch (NSException *e) {}
@@ -657,11 +825,22 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             if ([self respondsToSelector:@selector(tableView)]) {
                 UITableView *tv = [self tableView];
-                if (tv.tableFooterView) {
-                    NSString *footerCls = NSStringFromClass([tv.tableFooterView class]);
-                    if ([footerCls containsString:@"FOA"] || [footerCls containsString:@"Meta"] || [footerCls containsString:@"Bridge"] || [footerCls containsString:@"HScroll"]) {
-                        tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
-                    }
+                if (tv.tableFooterView && tv.tableFooterView.frame.size.height > 0.1) {
+                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, 0.001f)];
+                }
+            }
+        } @catch (NSException *e) {}
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(tableView)]) {
+                UITableView *tv = [self tableView];
+                if (tv.tableFooterView && tv.tableFooterView.frame.size.height > 0.1) {
+                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, 0.001f)];
                 }
             }
         } @catch (NSException *e) {}

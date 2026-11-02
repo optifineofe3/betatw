@@ -63,10 +63,43 @@
 @property (nonatomic, assign) BOOL isViewOnce;
 @property (nonatomic, assign) int64_t viewOnceCount;
 - (BOOL)isViewOnceOpened;
+- (BOOL)isViewOnceExpired;
 - (void)markViewOnceMessageExpiredIfPossible;
+- (BOOL)isRevoked;
+- (BOOL)isRevokedByAdmin;
+- (BOOL)isMessageRevoked;
 - (NSString *)stanzaId;
 - (id)chatJID;
 - (NSString *)text;
+- (void)setText:(NSString *)text;
+- (id)mediaItem;
+@end
+
+@interface WAChatStorage : NSObject
+- (void)revokeIncomingMessage:(id)message triggeredByMessageWithID:(id)messageID onDate:(id)date outOfOrder:(BOOL)outOfOrder revokedByAdminUserJID:(id)adminJID deferAction:(id)deferAction;
+- (void)internalRevokeMessages:(NSArray *)messages triggeredByMessageWithID:(id)messageID onDate:(id)date outgoing:(BOOL)outgoing revokedByAdminUserJID:(id)adminJID botPluginMessagesToDelete:(id)botMsgs beginTransactions:(BOOL)begin commitTransactions:(BOOL)commit;
+- (void)deleteExpiredViewOnceContent:(id)messages completion:(id)completion;
+@end
+
+@interface _TtC22WAChatMessagesVCStrict28WAChatMessagesViewController : UIViewController
+- (void)chatStorageDidRevokeMessages:(id)messages;
+- (void)chatStorageWillRevokeMessages:(id)messages;
+- (void)presentExpiredViewOnceAlertViewForMessage:(id)message;
+@end
+
+@interface _TtC23WAViewOnceMessageViewer43ViewOnceMessageContentDisplayViewController : UIViewController
+@end
+
+@interface WAMediaBrowserViewController : UIViewController
+- (void)userDidTakeScreenshot:(id)notification;
+@end
+
+@interface _TtC25WAMessageSliceViewsStatus30StatusComponentMessageSnapshot : NSObject
+- (BOOL)isMessageRevoked;
+@end
+
+@interface _TtC24WAMessageStatusProviding23MessageStatusDescriptor : NSObject
+- (BOOL)snippetHideIfRevoked;
 @end
 
 @interface WATableSection : NSObject
