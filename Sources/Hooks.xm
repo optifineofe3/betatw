@@ -358,13 +358,9 @@ static BOOL isMetaTrashRow(id row) {
             id t = [row performSelector:@selector(text)];
             if ([t isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)t)) return YES;
         }
-        if ([row respondsToSelector:@selector(cell)]) {
-            id c = [row performSelector:@selector(cell)];
-            if ([c isKindOfClass:[UITableViewCell class]]) {
-                UITableViewCell *cell = (UITableViewCell *)c;
-                NSString *cellText = cell.textLabel.text ?: findTextRecursively(cell.contentView);
-                if (isMetaTrashString(cellText)) return YES;
-            }
+        if ([row respondsToSelector:@selector(detailText)]) {
+            id d = [row performSelector:@selector(detailText)];
+            if ([d isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)d)) return YES;
         }
     } @catch (NSException *e) {}
     return NO;
@@ -382,6 +378,8 @@ static void recursivelyHideMetaAI(UIView *view) {
             view.hidden = YES;
             view.alpha = 0.0;
             view.userInteractionEnabled = NO;
+            [view removeFromSuperview];
+            return;
         }
         
         if ([view isKindOfClass:[UILabel class]]) {
@@ -400,7 +398,7 @@ static void recursivelyHideMetaAI(UIView *view) {
             view.userInteractionEnabled = NO;
         }
         
-        for (UIView *sub in view.subviews) {
+        for (UIView *sub in [view.subviews copy]) {
             recursivelyHideMetaAI(sub);
         }
     } @catch (NSException *e) {}
@@ -437,7 +435,74 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     } @catch (NSException *e) {}
 }
 
+%hook WAStaticTableViewController
+
+- (void)addSection:(id)section {
+    if (!section) return;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            NSString *secCls = NSStringFromClass([section class]);
+            if ([secCls containsString:@"FOA"] || [secCls containsString:@"Meta"] || [secCls containsString:@"AccountsCenter"]) {
+                return;
+            }
+            if ([section respondsToSelector:@selector(headerTitle)]) {
+                NSString *h = [section performSelector:@selector(headerTitle)];
+                if (isMetaTrashString(h)) return;
+            }
+            if ([section respondsToSelector:@selector(footerTitle)]) {
+                NSString *f = [section performSelector:@selector(footerTitle)];
+                if (isMetaTrashString(f)) return;
+            }
+        } @catch (NSException *e) {}
+    }
+    %orig(section);
+}
+
+%end
+
 %hook WASettingsViewController
+
+- (void)addSubscriptionsRowIfEligibleToSection:(id)arg1 {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)addSubscriptionsRowToSection:(id)arg1 {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (BOOL)isSubscriptionsRowPresentInTable {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isSubscriptionsRowOffered {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (id)makeAccountsCenterSection {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (id)makeAlsoFromMetaSection {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return nil;
+    }
+    return %orig;
+}
 
 - (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
     %orig;
@@ -448,7 +513,7 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         cellText = findTextRecursively(cell.contentView) ?: @"";
     }
     
-    // Hide Meta trash rows (Subscriptions, Accounts Center, Also from Meta)
+    // Hide Meta trash rows if any slipped through
     if (WATweakGetBool(kHideMetaTrash, YES) && isMetaTrashString(cellText)) {
         cell.hidden = YES;
         cell.contentView.hidden = YES;
@@ -458,9 +523,7 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     
     // Help / Feedback long-press gesture for opening tweak menu
     BOOL isHelp = [cellText rangeOfString:@"Help" options:NSCaseInsensitiveSearch].location != NSNotFound ||
-                  [cellText rangeOfString:@"Помощь" options:NSCaseInsensitiveSearch].location != NSNotFound ||
-                  [cellText rangeOfString:@"Feedback" options:NSCaseInsensitiveSearch].location != NSNotFound ||
-                  [cellText rangeOfString:@"Справка" options:NSCaseInsensitiveSearch].location != NSNotFound;
+                  [cellText rangeOfString:@"Feedback" options:NSCaseInsensitiveSearch].location != NSNotFound;
     
     if (isHelp) {
         BOOL alreadyAttached = NO;
@@ -477,35 +540,6 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
             [cell addGestureRecognizer:lp];
         }
     }
-}
-
-- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        @try {
-            if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
-                id row = [self rowAtIndexPath:indexPath];
-                if (isMetaTrashRow(row)) {
-                    return CGFLOAT_MIN;
-                }
-            }
-        } @catch (NSException *e) {}
-    }
-    return %orig;
-}
-
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        @try {
-            if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
-                id row = [self rowAtIndexPath:indexPath];
-                if (isMetaTrashRow(row)) {
-                    [tableView deselectRowAtIndexPath:indexPath animated:NO];
-                    return;
-                }
-            }
-        } @catch (NSException *e) {}
-    }
-    %orig;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -543,18 +577,18 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
 
 %hook WAProfileViewController
 
-- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+- (void)addSubscriptionsRowIfEligibleToSection:(id)arg1 {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
-        @try {
-            if ([self respondsToSelector:@selector(rowAtIndexPath:)]) {
-                id row = [self rowAtIndexPath:indexPath];
-                if (isMetaTrashRow(row)) {
-                    return CGFLOAT_MIN;
-                }
-            }
-        } @catch (NSException *e) {}
+        return;
     }
-    return %orig;
+    %orig;
+}
+
+- (void)addSubscriptionsRowToSection:(id)arg1 {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        return;
+    }
+    %orig;
 }
 
 - (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -573,41 +607,161 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
 
 #pragma mark - 9. Clean UI & Anti-Meta AI
 
-%hook _TtC9WAAIViews34FloatingActionButtonViewController
+%hook WATabBarController
 
-- (void)viewDidLoad {
-    %orig;
+- (void)addAIFABIfNeeded {
     if (WATweakGetBool(kHideMetaAI, YES)) {
-        self.view.hidden = YES;
-        self.view.alpha = 0.0;
-        self.view.userInteractionEnabled = NO;
-        self.view.frame = CGRectZero;
+        return;
     }
+    %orig;
+}
+
+- (void)updateAIFABStateIfNeeded {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)updateAIFabStateIfTabChanged {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)updateAIFABStateForShouldSelect:(id)arg1 {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig(arg1);
+}
+
+- (void)updateAIFABVisibility {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)updateAIFABBottomConstraintIfNeeded {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return;
+    }
+    %orig;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
     if (WATweakGetBool(kHideMetaAI, YES)) {
-        self.view.hidden = YES;
-        self.view.alpha = 0.0;
-        self.view.userInteractionEnabled = NO;
-        self.view.frame = CGRectZero;
+        @try {
+            for (UIViewController *child in self.childViewControllers) {
+                NSString *cls = NSStringFromClass([child class]);
+                if ([cls containsString:@"FloatingActionButton"] || [cls containsString:@"AIFAB"]) {
+                    child.view.hidden = YES;
+                    child.view.alpha = 0.0;
+                    child.view.userInteractionEnabled = NO;
+                    [child.view removeFromSuperview];
+                }
+            }
+        } @catch (NSException *e) {}
     }
 }
 
-- (void)viewDidLayoutSubviews {
+- (void)viewDidAppear:(BOOL)animated {
     %orig;
     if (WATweakGetBool(kHideMetaAI, YES)) {
-        self.view.hidden = YES;
-        self.view.alpha = 0.0;
-        self.view.userInteractionEnabled = NO;
-        self.view.frame = CGRectZero;
+        @try {
+            for (UIViewController *child in self.childViewControllers) {
+                NSString *cls = NSStringFromClass([child class]);
+                if ([cls containsString:@"FloatingActionButton"] || [cls containsString:@"AIFAB"]) {
+                    child.view.hidden = YES;
+                    child.view.alpha = 0.0;
+                    child.view.userInteractionEnabled = NO;
+                    [child.view removeFromSuperview];
+                }
+            }
+        } @catch (NSException *e) {}
     }
 }
 
 %end
 
+%hook _TtC9WAAIViews34FloatingActionButtonViewController
+
+- (void)loadView {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        UIView *dummy = [[UIView alloc] initWithFrame:CGRectZero];
+        dummy.hidden = YES;
+        dummy.alpha = 0.0;
+        dummy.userInteractionEnabled = NO;
+        self.view = dummy;
+        return;
+    }
+    %orig;
+}
+
+- (void)viewDidLoad {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+        [self.view removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+        [self.view removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        self.view.frame = CGRectZero;
+        [self.view removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+
+- (void)viewDidLayoutSubviews {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        self.view.hidden = YES;
+        self.view.alpha = 0.0;
+        self.view.userInteractionEnabled = NO;
+        [self.view removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+
+%end
+
 %hook _TtC9WAAIViews29FloatingActionButtonViewModel
+
+- (BOOL)isFloatingActionButtonVisible {
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+%hook _TtC25WAChatListViewControllers39ChatListAIFloatingActionButtonViewModel
 
 - (BOOL)isFloatingActionButtonVisible {
     if (WATweakGetBool(kHideMetaAI, YES)) {
@@ -701,6 +855,7 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
                 btn.hidden = YES;
                 btn.alpha = 0.0;
                 btn.userInteractionEnabled = NO;
+                [btn removeFromSuperview];
             }
         }
         recursivelyHideMetaAI(self.view);
@@ -725,6 +880,7 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
                 btn.hidden = YES;
                 btn.alpha = 0.0;
                 btn.userInteractionEnabled = NO;
+                [btn removeFromSuperview];
             }
         }
         recursivelyHideMetaAI(self.view);
@@ -738,38 +894,49 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     }
 }
 
+- (void)updateNavigationBarButtons {
+    %orig;
+    if (WATweakGetBool(kHideMetaAI, YES)) {
+        watweak_filterChatListNavBarButtons(self);
+    }
+}
+
 %end
 
 %hook _TtC17WAFOABridgesViews36WAFOAHScrollCollectionViewController
 
-- (void)viewDidLoad {
+- (void)loadView {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        UIView *v = [[UIView alloc] initWithFrame:CGRectZero];
+        v.hidden = YES;
+        v.alpha = 0.0;
+        v.userInteractionEnabled = NO;
+        self.view = v;
+        return;
+    }
     %orig;
+}
+
+- (void)viewDidLoad {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
         self.view.hidden = YES;
         self.view.alpha = 0.0;
         self.view.userInteractionEnabled = NO;
-        self.view.frame = CGRectZero;
+        [self.view removeFromSuperview];
+        return;
     }
+    %orig;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
-    %orig;
     if (WATweakGetBool(kHideMetaTrash, YES)) {
         self.view.hidden = YES;
         self.view.alpha = 0.0;
         self.view.userInteractionEnabled = NO;
-        self.view.frame = CGRectZero;
+        [self.view removeFromSuperview];
+        return;
     }
-}
-
-- (void)viewDidLayoutSubviews {
     %orig;
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        self.view.hidden = YES;
-        self.view.alpha = 0.0;
-        self.view.userInteractionEnabled = NO;
-        self.view.frame = CGRectZero;
-    }
 }
 
 %end

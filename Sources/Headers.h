@@ -88,9 +88,16 @@
 - (id)rowAtIndexPath:(NSIndexPath *)indexPath;
 - (id)sectionAtIndex:(NSInteger)index;
 - (void)setSections:(NSArray *)sections;
+- (void)addSection:(id)section;
 @end
 
 @interface WASettingsViewController : WAStaticTableViewController
+- (void)addSubscriptionsRowIfEligibleToSection:(id)arg1;
+- (void)addSubscriptionsRowToSection:(id)arg1;
+- (BOOL)isSubscriptionsRowPresentInTable;
+- (BOOL)isSubscriptionsRowOffered;
+- (id)makeAccountsCenterSection;
+- (id)makeAlsoFromMetaSection;
 - (void)watweak_openSettingsFromLongPress:(id)sender;
 @end
 
@@ -163,15 +170,30 @@
 
 @interface WAProfileViewController : WAStaticTableViewController
 - (void)savePushNameIfValid;
+- (void)addSubscriptionsRowIfEligibleToSection:(id)arg1;
+- (void)addSubscriptionsRowToSection:(id)arg1;
 @end
 
 @interface WAVerificationProfileController : UIViewController
+@end
+
+@interface WATabBarController : UITabBarController
+- (void)addAIFABIfNeeded;
+- (void)updateAIFABStateIfNeeded;
+- (void)updateAIFabStateIfTabChanged;
+- (void)updateAIFABStateForShouldSelect:(id)arg1;
+- (void)updateAIFABVisibility;
+- (void)updateAIFABBottomConstraintIfNeeded;
 @end
 
 @interface _TtC9WAAIViews34FloatingActionButtonViewController : UIViewController
 @end
 
 @interface _TtC9WAAIViews29FloatingActionButtonViewModel : NSObject
+- (BOOL)isFloatingActionButtonVisible;
+@end
+
+@interface _TtC25WAChatListViewControllers39ChatListAIFloatingActionButtonViewModel : NSObject
 - (BOOL)isFloatingActionButtonVisible;
 @end
 
@@ -188,6 +210,7 @@
 - (BOOL)chatListNavigationMetaAIFloatingButtonEnabled;
 - (BOOL)isChatListMetaAIEntryPointEnabled;
 - (void)updateRightBarButtonItems;
+- (void)updateNavigationBarButtons;
 - (void)addMetaAIFloatingButtonAsSubviewIfNeeded;
 - (void)setupMetaAIFloatingButton;
 @end
