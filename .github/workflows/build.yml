@@ -24,6 +24,9 @@ jobs:
           sdks-branch: 'main'
 
       - name: Install build tools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
         run: |
           brew install make dpkg ldid
           echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH

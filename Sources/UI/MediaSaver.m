@@ -213,7 +213,7 @@ static void scanViewsRecursively(UIView *v, void (^imageBlock)(UIImage *), void 
     if (v.layer && v.layer.contents) {
         id contents = v.layer.contents;
         if (CFGetTypeID((__bridge CFTypeRef)contents) == CGImageGetTypeID()) {
-            layerBlock((CGImageRef)contents);
+            layerBlock((__bridge CGImageRef)contents);
         }
     }
     for (UIView *sub in v.subviews) {
