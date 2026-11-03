@@ -98,6 +98,38 @@
 - (void)userDidTakeScreenshot:(id)notification;
 @end
 
+@interface WABlockScreenshotViewProvider : NSObject
+- (id)initWithIsProtected:(BOOL)arg1;
+- (BOOL)isProtected;
+- (void)setIsProtected:(BOOL)arg1;
+- (BOOL)isOsCompatibleForDescriptionView;
+- (BOOL)isOSVersionCompatible;
+- (id)canvasView;
+- (void)addSnapshotView:(id)arg1;
+@end
+
+@interface WABlockScreenshotDescriptionView : UIView
+- (id)initWithConfiguration:(id)config;
+- (id)whatsAppLogoBlockingOverlayView;
+- (void)setWhatsAppLogoBlockingOverlayView:(id)view;
+@end
+
+@interface WAGenericMediaBrowserViewController : UIViewController
+- (void)verifyScreenshotProtection;
+- (void)showScreenshotBlockedToast;
+- (void)userDidTakeScreenshot:(id)notification;
+@end
+
+@interface WAPictureContainerViewControllerV3 : UIViewController
+- (void)installProfilePictureScreenshotProtectionIfNeeded;
+- (BOOL)profilePictureScreenshotProtectionInstalled;
+- (void)profilePictureUserDidTakeScreenshot:(id)notification;
+@end
+
+@interface WAStatusViewerViewController : UIViewController
+- (void)viewerDidTakeScreenshot:(id)notification;
+@end
+
 @interface _TtC25WAMessageSliceViewsStatus30StatusComponentMessageSnapshot : NSObject
 - (BOOL)isMessageRevoked;
 @end

@@ -1,6 +1,8 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <dlfcn.h>
+#import "fishhook/fishhook.h"
 #import "Headers.h"
 #import "Constants.h"
 #import "UI/WAExtra.h"
@@ -392,6 +394,11 @@
     [MediaSaver attachToController:self];
 }
 
+- (void)viewDidLayoutSubviews {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
 - (void)viewWillDisappear:(BOOL)animated {
     %orig;
     [MediaSaver detachFromController:self animated:animated];
@@ -413,6 +420,11 @@
     [MediaSaver attachToController:self];
 }
 
+- (void)viewDidLayoutSubviews {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
 - (void)viewWillDisappear:(BOOL)animated {
     %orig;
     [MediaSaver detachFromController:self animated:animated];
@@ -420,9 +432,54 @@
 
 %end
 
+%hook WAGenericMediaBrowserViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+- (void)verifyScreenshotProtection {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)showScreenshotBlockedToast {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (void)userDidTakeScreenshot:(id)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
 %hook WAMediaBrowserViewController
 
 - (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewDidLayoutSubviews {
     %orig;
     [MediaSaver attachToController:self];
 }
@@ -441,7 +498,203 @@
 
 %end
 
+%hook WAStatusViewerViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+- (void)viewerDidTakeScreenshot:(id)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook WAPictureContainerViewControllerV3
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+- (void)installProfilePictureScreenshotProtectionIfNeeded {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+- (BOOL)profilePictureScreenshotProtectionInstalled {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (void)profilePictureUserDidTakeScreenshot:(id)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook UIViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
+}
+
+%end
+
 #pragma mark - 7. Screenshot Detection & Protection Bypass
+
+%hook WABlockScreenshotViewProvider
+
+- (id)initWithIsProtected:(BOOL)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return %orig(NO);
+    }
+    return %orig;
+}
+
+- (BOOL)isProtected {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (void)setIsProtected:(BOOL)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        %orig(NO);
+        return;
+    }
+    %orig;
+}
+
+- (BOOL)isOsCompatibleForDescriptionView {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isOSVersionCompatible {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (void)addSnapshotView:(id)arg1 {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook WABlockScreenshotDescriptionView
+
+- (id)initWithConfiguration:(id)config {
+    self = %orig;
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        if (self) {
+            self.hidden = YES;
+            self.alpha = 0.0;
+            self.userInteractionEnabled = NO;
+            self.frame = CGRectZero;
+        }
+    }
+    return self;
+}
+
+- (id)initWithFrame:(CGRect)frame {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        frame = CGRectZero;
+    }
+    self = %orig(frame);
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        if (self) {
+            self.hidden = YES;
+            self.alpha = 0.0;
+            self.userInteractionEnabled = NO;
+        }
+    }
+    return self;
+}
+
+- (void)layoutSubviews {
+    %orig;
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+        self.userInteractionEnabled = NO;
+        self.frame = CGRectZero;
+        [self removeFromSuperview];
+    }
+}
+
+- (void)didMoveToWindow {
+    %orig;
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+        self.userInteractionEnabled = NO;
+        self.frame = CGRectZero;
+        [self removeFromSuperview];
+    }
+}
+
+- (void)didMoveToSuperview {
+    %orig;
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+        self.userInteractionEnabled = NO;
+        self.frame = CGRectZero;
+        [self removeFromSuperview];
+    }
+}
+
+%end
 
 %hook WhatsAppAppDelegate
 
@@ -1410,8 +1663,30 @@ static BOOL isTelemetryURL(NSURL *url) {
 
 %end
 
+static BOOL (*orig_WAIsScreenshotPreventionSupported)(void) = NULL;
+static BOOL hooked_WAIsScreenshotPreventionSupported(void) {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return orig_WAIsScreenshotPreventionSupported ? orig_WAIsScreenshotPreventionSupported() : YES;
+}
+
+static BOOL (*orig_WAIsViewOnceScreenshotPreventionFutureproof)(void) = NULL;
+static BOOL hooked_WAIsViewOnceScreenshotPreventionFutureproof(void) {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return orig_WAIsViewOnceScreenshotPreventionFutureproof ? orig_WAIsViewOnceScreenshotPreventionFutureproof() : YES;
+}
+
 %ctor {
     @autoreleasepool {
         [NSURLProtocol registerClass:[WATweakTelemetryBlockerProtocol class]];
+        
+        struct rebinding rebinds[] = {
+            {"WAIsScreenshotPreventionSupported", (void *)hooked_WAIsScreenshotPreventionSupported, (void **)&orig_WAIsScreenshotPreventionSupported},
+            {"WAIsViewOnceScreenshotPreventionFutureproof", (void *)hooked_WAIsViewOnceScreenshotPreventionFutureproof, (void **)&orig_WAIsViewOnceScreenshotPreventionFutureproof}
+        };
+        rebind_symbols(rebinds, 2);
     }
 }

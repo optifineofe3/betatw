@@ -3,6 +3,7 @@
 @interface MediaSaver : NSObject <UIGestureRecognizerDelegate>
 
 + (instancetype)shared;
++ (BOOL)isMediaViewerController:(UIViewController *)controller;
 + (void)attachToController:(UIViewController *)controller;
 + (void)detachFromController:(UIViewController *)controller animated:(BOOL)animated;
 + (void)saveMediaFromController:(UIViewController *)controller;

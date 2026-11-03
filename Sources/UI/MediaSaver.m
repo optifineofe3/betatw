@@ -71,6 +71,22 @@ static UIImage *downloadIconImage(void) {
     return icon;
 }
 
++ (BOOL)isMediaViewerController:(UIViewController *)controller {
+    if (!controller) return NO;
+    NSString *cls = NSStringFromClass([controller class]);
+    if ([cls containsString:@"ViewOnce"] ||
+        [cls containsString:@"MediaBrowser"] ||
+        [cls containsString:@"StatusViewer"] ||
+        [cls containsString:@"PictureContainer"] ||
+        [cls containsString:@"MediaViewer"] ||
+        [cls containsString:@"PhotoViewController"] ||
+        [cls containsString:@"VideoViewController"] ||
+        [cls containsString:@"MediaContentDisplay"]) {
+        return YES;
+    }
+    return NO;
+}
+
 + (void)attachToController:(UIViewController *)controller {
     if (!controller || !controller.isViewLoaded) return;
     
@@ -78,21 +94,47 @@ static UIImage *downloadIconImage(void) {
     if (!view) return;
     
     // Check if already added
-    if ([view viewWithTag:998811]) return;
+    UIView *existingBtn = [view viewWithTag:998811];
+    if (existingBtn) {
+        existingBtn.hidden = NO;
+        existingBtn.alpha = 1.0;
+        existingBtn.layer.zPosition = 999999;
+        [view bringSubviewToFront:existingBtn];
+        return;
+    }
+    
+    CGFloat btnSize = 46.0;
+    CGRect bounds = view.bounds;
+    if (bounds.size.width < 50 || bounds.size.height < 50) {
+        bounds = [UIScreen mainScreen].bounds;
+    }
+    
+    CGFloat bottomMargin = 60.0;
+    if (@available(iOS 11.0, *)) {
+        if (view.safeAreaInsets.bottom > 0) {
+            bottomMargin = view.safeAreaInsets.bottom + 20.0;
+        }
+    }
+    
+    CGRect initialFrame = CGRectMake(bounds.size.width - btnSize - 18.0,
+                                     bounds.size.height - bottomMargin - btnSize,
+                                     btnSize,
+                                     btnSize);
     
     MediaSaverButton *btn = [MediaSaverButton buttonWithType:UIButtonTypeCustom];
     btn.tag = 998811;
+    btn.frame = initialFrame;
+    btn.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
     btn.targetController = controller;
     btn.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.10 alpha:0.88];
     btn.tintColor = [UIColor whiteColor];
-    btn.layer.cornerRadius = 22.0;
+    btn.layer.cornerRadius = btnSize / 2.0;
     btn.layer.shadowColor = [UIColor blackColor].CGColor;
-    btn.layer.shadowOpacity = 0.40;
-    btn.layer.shadowOffset = CGSizeMake(0, 2);
+    btn.layer.shadowOpacity = 0.45;
+    btn.layer.shadowOffset = CGSizeMake(0, 3);
     btn.layer.shadowRadius = 6.0;
-    btn.layer.zPosition = 9999;
+    btn.layer.zPosition = 999999;
     btn.clipsToBounds = NO;
-    btn.translatesAutoresizingMaskIntoConstraints = NO;
     
     [btn setImage:downloadIconImage() forState:UIControlStateNormal];
     [btn addTarget:[MediaSaver shared] action:@selector(handleButtonTap:) forControlEvents:UIControlEventTouchUpInside];
@@ -102,13 +144,6 @@ static UIImage *downloadIconImage(void) {
     
     [view addSubview:btn];
     [view bringSubviewToFront:btn];
-    
-    [NSLayoutConstraint activateConstraints:@[
-        [btn.bottomAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.bottomAnchor constant:-55],
-        [btn.trailingAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.trailingAnchor constant:-18],
-        [btn.widthAnchor constraintEqualToConstant:44],
-        [btn.heightAnchor constraintEqualToConstant:44]
-    ]];
     
     [UIView animateWithDuration:0.25 delay:0.05 options:UIViewAnimationOptionCurveEaseOut animations:^{
         btn.alpha = 1.0;
@@ -265,28 +300,93 @@ static void scanViewsRecursively(UIView *v, void (^imageBlock)(UIImage *), void 
     return snap;
 }
 
+static NSString *resolveExistingFilePath(NSString *rawPath) {
+    if (!rawPath || ![rawPath isKindOfClass:[NSString class]] || rawPath.length == 0) return nil;
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if ([fm fileExistsAtPath:rawPath]) return rawPath;
+    
+    // Check Documents directory
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (docs) {
+        NSString *cand = [docs stringByAppendingPathComponent:rawPath];
+        if ([fm fileExistsAtPath:cand]) return cand;
+    }
+    // Check Library directory
+    NSString *lib = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
+    if (lib) {
+        NSString *cand = [lib stringByAppendingPathComponent:rawPath];
+        if ([fm fileExistsAtPath:cand]) return cand;
+    }
+    // Check tmp directory
+    NSString *tmp = NSTemporaryDirectory();
+    if (tmp) {
+        NSString *cand = [tmp stringByAppendingPathComponent:rawPath];
+        if ([fm fileExistsAtPath:cand]) return cand;
+        NSString *lastComp = [rawPath lastPathComponent];
+        cand = [tmp stringByAppendingPathComponent:lastComp];
+        if ([fm fileExistsAtPath:cand]) return cand;
+    }
+    return nil;
+}
+
+static id findMessageInController(UIViewController *ctrl) {
+    if (!ctrl) return nil;
+    id msg = safeInvokeGetter(ctrl, @"message");
+    if (msg) return msg;
+    if (ctrl.parentViewController) {
+        msg = safeInvokeGetter(ctrl.parentViewController, @"message");
+        if (msg) return msg;
+    }
+    for (UIViewController *child in ctrl.childViewControllers) {
+        msg = safeInvokeGetter(child, @"message");
+        if (msg) return msg;
+    }
+    return nil;
+}
+
+static id findMediaInController(UIViewController *ctrl) {
+    if (!ctrl) return nil;
+    for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media"]) {
+        id m = safeInvokeGetter(ctrl, sel);
+        if (m) return m;
+    }
+    if (ctrl.parentViewController) {
+        for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media"]) {
+            id m = safeInvokeGetter(ctrl.parentViewController, sel);
+            if (m) return m;
+        }
+    }
+    for (UIViewController *child in ctrl.childViewControllers) {
+        for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media"]) {
+            id m = safeInvokeGetter(child, sel);
+            if (m) return m;
+        }
+    }
+    return nil;
+}
+
 + (void)saveMediaFromController:(UIViewController *)controller {
     if (!controller || !controller.isViewLoaded) {
         [self showToast:@"Unable to find media" success:NO];
         return;
     }
     
-    // 0. Check message media item directly if available
+    // 0. Check message and media item directly (View-Once & chat messages)
     @try {
-        id msg = safeInvokeGetter(controller, @"message");
+        id msg = findMessageInController(controller);
         if (msg) {
             id mi = safeInvokeGetter(msg, @"mediaItem");
             if (mi) {
                 for (NSString *sel in @[@"mediaLocalPath", @"fullPath", @"path", @"filePath"]) {
                     id pathObj = safeInvokeGetter(mi, sel);
-                    if ([pathObj isKindOfClass:[NSString class]] && [[NSFileManager defaultManager] fileExistsAtPath:(NSString *)pathObj]) {
-                        NSString *p = (NSString *)pathObj;
-                        NSString *ext = [[p pathExtension] lowercaseString];
-                        if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"]) {
-                            [self saveVideoToPhotos:p];
+                    NSString *resolved = resolveExistingFilePath(pathObj);
+                    if (resolved) {
+                        NSString *ext = [[resolved pathExtension] lowercaseString];
+                        if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                            [self saveVideoToPhotos:resolved];
                             return;
                         } else if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"] || [ext isEqualToString:@"png"]) {
-                            UIImage *img = [UIImage imageWithContentsOfFile:p];
+                            UIImage *img = [UIImage imageWithContentsOfFile:resolved];
                             if (img) {
                                 [self saveImageToPhotos:img];
                                 return;
@@ -296,16 +396,44 @@ static void scanViewsRecursively(UIView *v, void (^imageBlock)(UIImage *), void 
                 }
             }
         }
+        
+        // 0b. Check media object in browser controllers
+        id media = findMediaInController(controller);
+        if (media) {
+            for (NSString *sel in @[@"mediaLocalPath", @"fullPath", @"path", @"filePath"]) {
+                id pathObj = safeInvokeGetter(media, sel);
+                NSString *resolved = resolveExistingFilePath(pathObj);
+                if (resolved) {
+                    NSString *ext = [[resolved pathExtension] lowercaseString];
+                    if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                        [self saveVideoToPhotos:resolved];
+                        return;
+                    } else if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"] || [ext isEqualToString:@"png"]) {
+                        UIImage *img = [UIImage imageWithContentsOfFile:resolved];
+                        if (img) {
+                            [self saveImageToPhotos:img];
+                            return;
+                        }
+                    }
+                }
+            }
+            id imgObj = safeInvokeGetter(media, @"image");
+            if ([imgObj isKindOfClass:[UIImage class]]) {
+                [self saveImageToPhotos:(UIImage *)imgObj];
+                return;
+            }
+        }
     } @catch (NSException *e) {}
     
-    // 1. Try finding video first
+    // 1. Try finding video first in view hierarchy
     NSString *videoPath = findVideoPathInView(controller.view);
-    if (videoPath && [[NSFileManager defaultManager] fileExistsAtPath:videoPath]) {
-        [self saveVideoToPhotos:videoPath];
+    NSString *resolvedVideo = resolveExistingFilePath(videoPath);
+    if (resolvedVideo) {
+        [self saveVideoToPhotos:resolvedVideo];
         return;
     }
     
-    // 2. Try finding image
+    // 2. Try finding image in view hierarchy
     UIImage *image = [self findImageInView:controller.view];
     if (image) {
         [self saveImageToPhotos:image];
