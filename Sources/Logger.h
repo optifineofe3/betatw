@@ -13,3 +13,4 @@ const char *getLogFilePathCString(void);
 #endif
 
 #define WATweakLog(fmt, ...) tweakLog((@"[WATweak] " fmt), ##__VA_ARGS__)
+#define WALog(fmt, ...) tweakLog((fmt), ##__VA_ARGS__)

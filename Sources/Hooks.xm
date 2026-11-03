@@ -211,7 +211,7 @@
 
 - (void)revokeIncomingMessage:(id)message triggeredByMessageWithID:(id)messageID onDate:(id)date outOfOrder:(BOOL)outOfOrder revokedByAdminUserJID:(id)adminJID deferAction:(id)deferAction {
     if (WATweakGetBool(kAntiRevoke, YES)) {
-        WALog(@"[Tweak] Suppressed revokeIncomingMessage for message: %@", message);
+        WATweakLog(@"Suppressed revokeIncomingMessage for message: %@", message);
         @try {
             if ([message respondsToSelector:@selector(text)]) {
                 NSString *txt = [message text];
@@ -222,7 +222,7 @@
                 }
             }
         } @catch (NSException *e) {
-            WALog(@"[Tweak] Exception in revokeIncomingMessage: %@", e);
+            WATweakLog(@"Exception in revokeIncomingMessage: %@", e);
         }
         return;
     }
@@ -231,7 +231,7 @@
 
 - (void)internalRevokeMessages:(NSArray *)messages triggeredByMessageWithID:(id)messageID onDate:(id)date outgoing:(BOOL)outgoing revokedByAdminUserJID:(id)adminJID botPluginMessagesToDelete:(id)botMsgs beginTransactions:(BOOL)begin commitTransactions:(BOOL)commit {
     if (WATweakGetBool(kAntiRevoke, YES) && !outgoing) {
-        WALog(@"[Tweak] Suppressed internalRevokeMessages for incoming messages");
+        WATweakLog(@"Suppressed internalRevokeMessages for incoming messages");
         @try {
             for (id msg in messages) {
                 if ([msg respondsToSelector:@selector(text)]) {
@@ -244,7 +244,7 @@
                 }
             }
         } @catch (NSException *e) {
-            WALog(@"[Tweak] Exception in internalRevokeMessages: %@", e);
+            WATweakLog(@"Exception in internalRevokeMessages: %@", e);
         }
         return;
     }
@@ -253,7 +253,7 @@
 
 - (void)deleteExpiredViewOnceContent:(id)messages completion:(id)completion {
     if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
-        WALog(@"[Tweak] Prevented deleteExpiredViewOnceContent");
+        WATweakLog(@"Prevented deleteExpiredViewOnceContent");
         if (completion) {
             void (^block)(BOOL) = (void (^)(BOOL))completion;
             block(NO);
