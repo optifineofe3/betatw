@@ -90,65 +90,69 @@ static UIImage *downloadIconImage(void) {
 + (void)attachToController:(UIViewController *)controller {
     if (!controller || !controller.isViewLoaded) return;
     
-    UIView *view = controller.view;
-    if (!view) return;
-    
-    // Check if already added
-    UIView *existingBtn = [view viewWithTag:998811];
-    if (existingBtn) {
-        existingBtn.hidden = NO;
-        existingBtn.alpha = 1.0;
-        existingBtn.layer.zPosition = 999999;
-        [view bringSubviewToFront:existingBtn];
-        return;
-    }
-    
-    CGFloat btnSize = 46.0;
-    CGRect bounds = view.bounds;
-    if (bounds.size.width < 50 || bounds.size.height < 50) {
-        bounds = [UIScreen mainScreen].bounds;
-    }
-    
-    CGFloat bottomMargin = 60.0;
-    if (@available(iOS 11.0, *)) {
-        if (view.safeAreaInsets.bottom > 0) {
-            bottomMargin = view.safeAreaInsets.bottom + 20.0;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!controller || !controller.isViewLoaded) return;
+        
+        UIView *view = controller.view;
+        if (!view) return;
+        
+        // Check if already added
+        UIView *existingBtn = [view viewWithTag:998811];
+        if (existingBtn) {
+            existingBtn.hidden = NO;
+            existingBtn.alpha = 1.0;
+            existingBtn.layer.zPosition = 999999;
+            [view bringSubviewToFront:existingBtn];
+            return;
         }
-    }
-    
-    CGRect initialFrame = CGRectMake(bounds.size.width - btnSize - 18.0,
-                                     bounds.size.height - bottomMargin - btnSize,
-                                     btnSize,
-                                     btnSize);
-    
-    MediaSaverButton *btn = [MediaSaverButton buttonWithType:UIButtonTypeCustom];
-    btn.tag = 998811;
-    btn.frame = initialFrame;
-    btn.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
-    btn.targetController = controller;
-    btn.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.10 alpha:0.88];
-    btn.tintColor = [UIColor whiteColor];
-    btn.layer.cornerRadius = btnSize / 2.0;
-    btn.layer.shadowColor = [UIColor blackColor].CGColor;
-    btn.layer.shadowOpacity = 0.45;
-    btn.layer.shadowOffset = CGSizeMake(0, 3);
-    btn.layer.shadowRadius = 6.0;
-    btn.layer.zPosition = 999999;
-    btn.clipsToBounds = NO;
-    
-    [btn setImage:downloadIconImage() forState:UIControlStateNormal];
-    [btn addTarget:[MediaSaver shared] action:@selector(handleButtonTap:) forControlEvents:UIControlEventTouchUpInside];
-    
-    btn.alpha = 0.0;
-    btn.transform = CGAffineTransformMakeScale(0.85, 0.85);
-    
-    [view addSubview:btn];
-    [view bringSubviewToFront:btn];
-    
-    [UIView animateWithDuration:0.25 delay:0.05 options:UIViewAnimationOptionCurveEaseOut animations:^{
-        btn.alpha = 1.0;
-        btn.transform = CGAffineTransformIdentity;
-    } completion:nil];
+        
+        CGFloat btnSize = 46.0;
+        CGRect bounds = view.bounds;
+        if (bounds.size.width < 50 || bounds.size.height < 50) {
+            bounds = [UIScreen mainScreen].bounds;
+        }
+        
+        CGFloat bottomMargin = 60.0;
+        if (@available(iOS 11.0, *)) {
+            if (view.safeAreaInsets.bottom > 0) {
+                bottomMargin = view.safeAreaInsets.bottom + 20.0;
+            }
+        }
+        
+        CGRect initialFrame = CGRectMake(bounds.size.width - btnSize - 18.0,
+                                         bounds.size.height - bottomMargin - btnSize,
+                                         btnSize,
+                                         btnSize);
+        
+        MediaSaverButton *btn = [MediaSaverButton buttonWithType:UIButtonTypeCustom];
+        btn.tag = 998811;
+        btn.frame = initialFrame;
+        btn.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
+        btn.targetController = controller;
+        btn.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.10 alpha:0.88];
+        btn.tintColor = [UIColor whiteColor];
+        btn.layer.cornerRadius = btnSize / 2.0;
+        btn.layer.shadowColor = [UIColor blackColor].CGColor;
+        btn.layer.shadowOpacity = 0.45;
+        btn.layer.shadowOffset = CGSizeMake(0, 3);
+        btn.layer.shadowRadius = 6.0;
+        btn.layer.zPosition = 999999;
+        btn.clipsToBounds = NO;
+        
+        [btn setImage:downloadIconImage() forState:UIControlStateNormal];
+        [btn addTarget:[MediaSaver shared] action:@selector(handleButtonTap:) forControlEvents:UIControlEventTouchUpInside];
+        
+        btn.alpha = 0.0;
+        btn.transform = CGAffineTransformMakeScale(0.85, 0.85);
+        
+        [view addSubview:btn];
+        [view bringSubviewToFront:btn];
+        
+        [UIView animateWithDuration:0.25 delay:0.05 options:UIViewAnimationOptionCurveEaseOut animations:^{
+            btn.alpha = 1.0;
+            btn.transform = CGAffineTransformIdentity;
+        } completion:nil];
+    });
 }
 
 + (void)detachFromController:(UIViewController *)controller animated:(BOOL)animated {
@@ -331,33 +335,39 @@ static NSString *resolveExistingFilePath(NSString *rawPath) {
 
 static id findMessageInController(UIViewController *ctrl) {
     if (!ctrl) return nil;
-    id msg = safeInvokeGetter(ctrl, @"message");
-    if (msg) return msg;
-    if (ctrl.parentViewController) {
-        msg = safeInvokeGetter(ctrl.parentViewController, @"message");
+    for (NSString *sel in @[@"message", @"lastVisibleMessageMedia"]) {
+        id msg = safeInvokeGetter(ctrl, sel);
         if (msg) return msg;
     }
+    if (ctrl.parentViewController) {
+        for (NSString *sel in @[@"message", @"lastVisibleMessageMedia"]) {
+            id msg = safeInvokeGetter(ctrl.parentViewController, sel);
+            if (msg) return msg;
+        }
+    }
     for (UIViewController *child in ctrl.childViewControllers) {
-        msg = safeInvokeGetter(child, @"message");
-        if (msg) return msg;
+        for (NSString *sel in @[@"message", @"lastVisibleMessageMedia"]) {
+            id msg = safeInvokeGetter(child, sel);
+            if (msg) return msg;
+        }
     }
     return nil;
 }
 
 static id findMediaInController(UIViewController *ctrl) {
     if (!ctrl) return nil;
-    for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media"]) {
+    for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media", @"lastVisibleMessageMedia"]) {
         id m = safeInvokeGetter(ctrl, sel);
         if (m) return m;
     }
     if (ctrl.parentViewController) {
-        for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media"]) {
+        for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media", @"lastVisibleMessageMedia"]) {
             id m = safeInvokeGetter(ctrl.parentViewController, sel);
             if (m) return m;
         }
     }
     for (UIViewController *child in ctrl.childViewControllers) {
-        for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media"]) {
+        for (NSString *sel in @[@"currentMedia", @"_currentMediaBeforeReload", @"_initialMedia", @"initialMedia", @"media", @"lastVisibleMessageMedia"]) {
             id m = safeInvokeGetter(child, sel);
             if (m) return m;
         }

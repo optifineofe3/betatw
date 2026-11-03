@@ -1,8 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
-#import <dlfcn.h>
-#import "fishhook/fishhook.h"
 #import "Headers.h"
 #import "Constants.h"
 #import "UI/WAExtra.h"
@@ -387,6 +385,28 @@
 
 #pragma mark - 6. Media Viewers & MediaSaver Floating Button
 
+%hook _TtC25WAMediaBrowserControllers30MediaBrowserTestViewController
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    [MediaSaver attachToController:self];
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
+}
+
+%end
+
 %hook WAViewOnceMessageViewController
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -396,7 +416,10 @@
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    [MediaSaver attachToController:self];
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -422,7 +445,10 @@
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    [MediaSaver attachToController:self];
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -441,7 +467,10 @@
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    [MediaSaver attachToController:self];
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -481,7 +510,10 @@
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    [MediaSaver attachToController:self];
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -507,7 +539,10 @@
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    [MediaSaver attachToController:self];
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -533,7 +568,10 @@
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    [MediaSaver attachToController:self];
+    UIView *btn = [self.view viewWithTag:998811];
+    if (btn) {
+        [self.view bringSubviewToFront:btn];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -573,13 +611,6 @@
     }
 }
 
-- (void)viewDidLayoutSubviews {
-    %orig;
-    if ([MediaSaver isMediaViewerController:self]) {
-        [MediaSaver attachToController:self];
-    }
-}
-
 %end
 
 #pragma mark - 7. Screenshot Detection & Protection Bypass
@@ -587,10 +618,13 @@
 %hook WABlockScreenshotViewProvider
 
 - (id)initWithIsProtected:(BOOL)arg1 {
+    self = %orig(arg1);
     if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        return %orig(NO);
+        if (self) {
+            [self setIsProtected:NO];
+        }
     }
-    return %orig;
+    return self;
 }
 
 - (BOOL)isProtected {
@@ -606,20 +640,6 @@
         return;
     }
     %orig;
-}
-
-- (BOOL)isOsCompatibleForDescriptionView {
-    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        return NO;
-    }
-    return %orig;
-}
-
-- (BOOL)isOSVersionCompatible {
-    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        return NO;
-    }
-    return %orig;
 }
 
 - (void)addSnapshotView:(id)arg1 {
@@ -640,16 +660,12 @@
             self.hidden = YES;
             self.alpha = 0.0;
             self.userInteractionEnabled = NO;
-            self.frame = CGRectZero;
         }
     }
     return self;
 }
 
 - (id)initWithFrame:(CGRect)frame {
-    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        frame = CGRectZero;
-    }
     self = %orig(frame);
     if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
         if (self) {
@@ -667,8 +683,6 @@
         self.hidden = YES;
         self.alpha = 0.0;
         self.userInteractionEnabled = NO;
-        self.frame = CGRectZero;
-        [self removeFromSuperview];
     }
 }
 
@@ -678,8 +692,6 @@
         self.hidden = YES;
         self.alpha = 0.0;
         self.userInteractionEnabled = NO;
-        self.frame = CGRectZero;
-        [self removeFromSuperview];
     }
 }
 
@@ -689,8 +701,6 @@
         self.hidden = YES;
         self.alpha = 0.0;
         self.userInteractionEnabled = NO;
-        self.frame = CGRectZero;
-        [self removeFromSuperview];
     }
 }
 
@@ -1663,30 +1673,8 @@ static BOOL isTelemetryURL(NSURL *url) {
 
 %end
 
-static BOOL (*orig_WAIsScreenshotPreventionSupported)(void) = NULL;
-static BOOL hooked_WAIsScreenshotPreventionSupported(void) {
-    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        return NO;
-    }
-    return orig_WAIsScreenshotPreventionSupported ? orig_WAIsScreenshotPreventionSupported() : YES;
-}
-
-static BOOL (*orig_WAIsViewOnceScreenshotPreventionFutureproof)(void) = NULL;
-static BOOL hooked_WAIsViewOnceScreenshotPreventionFutureproof(void) {
-    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
-        return NO;
-    }
-    return orig_WAIsViewOnceScreenshotPreventionFutureproof ? orig_WAIsViewOnceScreenshotPreventionFutureproof() : YES;
-}
-
 %ctor {
     @autoreleasepool {
         [NSURLProtocol registerClass:[WATweakTelemetryBlockerProtocol class]];
-        
-        struct rebinding rebinds[] = {
-            {"WAIsScreenshotPreventionSupported", (void *)hooked_WAIsScreenshotPreventionSupported, (void **)&orig_WAIsScreenshotPreventionSupported},
-            {"WAIsViewOnceScreenshotPreventionFutureproof", (void *)hooked_WAIsViewOnceScreenshotPreventionFutureproof, (void **)&orig_WAIsViewOnceScreenshotPreventionFutureproof}
-        };
-        rebind_symbols(rebinds, 2);
     }
 }

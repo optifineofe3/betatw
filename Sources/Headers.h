@@ -130,6 +130,9 @@
 - (void)viewerDidTakeScreenshot:(id)notification;
 @end
 
+@interface _TtC25WAMediaBrowserControllers30MediaBrowserTestViewController : UIViewController
+@end
+
 @interface _TtC25WAMessageSliceViewsStatus30StatusComponentMessageSnapshot : NSObject
 - (BOOL)isMessageRevoked;
 @end
