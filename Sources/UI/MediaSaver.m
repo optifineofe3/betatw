@@ -112,10 +112,10 @@ static UIImage *downloadIconImage(void) {
             bounds = [UIScreen mainScreen].bounds;
         }
         
-        CGFloat bottomMargin = 60.0;
+        CGFloat bottomMargin = 120.0;
         if (@available(iOS 11.0, *)) {
             if (view.safeAreaInsets.bottom > 0) {
-                bottomMargin = view.safeAreaInsets.bottom + 20.0;
+                bottomMargin = view.safeAreaInsets.bottom + 85.0;
             }
         }
         
@@ -141,6 +141,10 @@ static UIImage *downloadIconImage(void) {
         
         [btn setImage:downloadIconImage() forState:UIControlStateNormal];
         [btn addTarget:[MediaSaver shared] action:@selector(handleButtonTap:) forControlEvents:UIControlEventTouchUpInside];
+        
+        UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:[MediaSaver shared] action:@selector(handleButtonPan:)];
+        pan.maximumNumberOfTouches = 1;
+        [btn addGestureRecognizer:pan];
         
         btn.alpha = 0.0;
         btn.transform = CGAffineTransformMakeScale(0.85, 0.85);
@@ -191,6 +195,40 @@ static UIImage *downloadIconImage(void) {
     }
 }
 
+- (void)handleButtonPan:(UIPanGestureRecognizer *)pan {
+    UIView *btn = pan.view;
+    if (!btn || !btn.superview) return;
+    
+    if (pan.state == UIGestureRecognizerStateBegan) {
+        [UIView animateWithDuration:0.15 animations:^{
+            btn.transform = CGAffineTransformMakeScale(1.08, 1.08);
+        }];
+    }
+    
+    CGPoint translation = [pan translationInView:btn.superview];
+    CGPoint newCenter = CGPointMake(btn.center.x + translation.x, btn.center.y + translation.y);
+    
+    CGRect bounds = btn.superview.bounds;
+    CGFloat halfW = btn.bounds.size.width / 2.0;
+    CGFloat halfH = btn.bounds.size.height / 2.0;
+    CGFloat minX = halfW + 10.0;
+    CGFloat maxX = bounds.size.width - halfW - 10.0;
+    CGFloat minY = halfH + 44.0;
+    CGFloat maxY = bounds.size.height - halfH - 25.0;
+    
+    newCenter.x = MAX(minX, MIN(maxX, newCenter.x));
+    newCenter.y = MAX(minY, MIN(maxY, newCenter.y));
+    
+    btn.center = newCenter;
+    [pan setTranslation:CGPointZero inView:btn.superview];
+    
+    if (pan.state == UIGestureRecognizerStateEnded || pan.state == UIGestureRecognizerStateCancelled) {
+        [UIView animateWithDuration:0.15 animations:^{
+            btn.transform = CGAffineTransformIdentity;
+        }];
+    }
+}
+
 static id safeInvokeGetter(id obj, NSString *selectorName) {
     if (!obj || !selectorName) return nil;
     SEL sel = NSSelectorFromString(selectorName);
@@ -202,21 +240,27 @@ static id safeInvokeGetter(id obj, NSString *selectorName) {
     return nil;
 }
 
-static NSString *extractPathFromPlayerLayer(CALayer *layer) {
-    if (!layer) return nil;
+static NSString *extractPathFromPlayer(id player) {
+    if (!player) return nil;
     @try {
-        id player = safeInvokeGetter(layer, @"player");
-        if (player) {
-            id item = safeInvokeGetter(player, @"currentItem");
-            if (item) {
-                id asset = safeInvokeGetter(item, @"asset");
-                if (asset) {
-                    id urlObj = safeInvokeGetter(asset, @"URL");
-                    if (urlObj && [urlObj isKindOfClass:[NSURL class]]) {
-                        NSURL *url = (NSURL *)urlObj;
-                        if (url.isFileURL && url.path) {
-                            return url.path;
-                        }
+        id item = safeInvokeGetter(player, @"currentItem");
+        if (!item && [player respondsToSelector:@selector(playerItem)]) {
+            item = safeInvokeGetter(player, @"playerItem");
+        }
+        if (item) {
+            id asset = safeInvokeGetter(item, @"asset");
+            if (asset) {
+                if ([asset isKindOfClass:[AVURLAsset class]]) {
+                    NSURL *url = [(AVURLAsset *)asset URL];
+                    if (url.isFileURL && url.path) {
+                        return url.path;
+                    }
+                }
+                id urlObj = safeInvokeGetter(asset, @"URL");
+                if (urlObj && [urlObj isKindOfClass:[NSURL class]]) {
+                    NSURL *url = (NSURL *)urlObj;
+                    if (url.isFileURL && url.path) {
+                        return url.path;
                     }
                 }
             }
@@ -225,8 +269,49 @@ static NSString *extractPathFromPlayerLayer(CALayer *layer) {
     return nil;
 }
 
+static NSString *extractPathFromPlayerLayer(CALayer *layer) {
+    if (!layer) return nil;
+    @try {
+        if ([layer isKindOfClass:[AVPlayerLayer class]]) {
+            AVPlayer *p = [(AVPlayerLayer *)layer player];
+            NSString *path = extractPathFromPlayer(p);
+            if (path) return path;
+        }
+        id player = safeInvokeGetter(layer, @"player");
+        if (player) {
+            NSString *path = extractPathFromPlayer(player);
+            if (path) return path;
+        }
+    } @catch (NSException *e) {}
+    return nil;
+}
+
+static NSString *findVideoPathInController(UIViewController *ctrl) {
+    if (!ctrl) return nil;
+    for (NSString *sel in @[@"player", @"videoPlayer", @"avPlayer", @"mediaPlayer", @"videoPlayerController", @"playerController"]) {
+        id p = safeInvokeGetter(ctrl, sel);
+        NSString *path = extractPathFromPlayer(p);
+        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
+        if (p && [p isKindOfClass:[UIViewController class]]) {
+            NSString *childPath = findVideoPathInController((UIViewController *)p);
+            if (childPath && [[NSFileManager defaultManager] fileExistsAtPath:childPath]) return childPath;
+        }
+    }
+    for (UIViewController *child in ctrl.childViewControllers) {
+        NSString *path = findVideoPathInController(child);
+        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
+    }
+    return nil;
+}
+
 static NSString *findVideoPathInView(UIView *view) {
     if (!view) return nil;
+    
+    for (NSString *sel in @[@"player", @"videoPlayer", @"avPlayer"]) {
+        id p = safeInvokeGetter(view, sel);
+        NSString *path = extractPathFromPlayer(p);
+        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
+    }
     
     NSString *path = extractPathFromPlayerLayer(view.layer);
     if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
@@ -306,6 +391,10 @@ static void scanViewsRecursively(UIView *v, void (^imageBlock)(UIImage *), void 
 
 static NSString *resolveExistingFilePath(NSString *rawPath) {
     if (!rawPath || ![rawPath isKindOfClass:[NSString class]] || rawPath.length == 0) return nil;
+    if ([rawPath hasPrefix:@"file://"]) {
+        NSURL *u = [NSURL URLWithString:rawPath];
+        if (u.path) rawPath = u.path;
+    }
     NSFileManager *fm = [NSFileManager defaultManager];
     if ([fm fileExistsAtPath:rawPath]) return rawPath;
     
@@ -314,11 +403,26 @@ static NSString *resolveExistingFilePath(NSString *rawPath) {
     if (docs) {
         NSString *cand = [docs stringByAppendingPathComponent:rawPath];
         if ([fm fileExistsAtPath:cand]) return cand;
+        NSString *lastComp = [rawPath lastPathComponent];
+        cand = [docs stringByAppendingPathComponent:lastComp];
+        if ([fm fileExistsAtPath:cand]) return cand;
     }
     // Check Library directory
     NSString *lib = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
     if (lib) {
         NSString *cand = [lib stringByAppendingPathComponent:rawPath];
+        if ([fm fileExistsAtPath:cand]) return cand;
+        NSString *lastComp = [rawPath lastPathComponent];
+        cand = [lib stringByAppendingPathComponent:lastComp];
+        if ([fm fileExistsAtPath:cand]) return cand;
+    }
+    // Check Caches directory
+    NSString *caches = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
+    if (caches) {
+        NSString *cand = [caches stringByAppendingPathComponent:rawPath];
+        if ([fm fileExistsAtPath:cand]) return cand;
+        NSString *lastComp = [rawPath lastPathComponent];
+        cand = [caches stringByAppendingPathComponent:lastComp];
         if ([fm fileExistsAtPath:cand]) return cand;
     }
     // Check tmp directory
@@ -435,7 +539,14 @@ static id findMediaInController(UIViewController *ctrl) {
         }
     } @catch (NSException *e) {}
     
-    // 1. Try finding video first in view hierarchy
+    // 1. Try finding video in controller or view hierarchy
+    NSString *ctrlVideo = findVideoPathInController(controller);
+    NSString *resolvedCtrlVideo = resolveExistingFilePath(ctrlVideo);
+    if (resolvedCtrlVideo) {
+        [self saveVideoToPhotos:resolvedCtrlVideo];
+        return;
+    }
+    
     NSString *videoPath = findVideoPathInView(controller.view);
     NSString *resolvedVideo = resolveExistingFilePath(videoPath);
     if (resolvedVideo) {

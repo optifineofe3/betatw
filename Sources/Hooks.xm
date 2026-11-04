@@ -456,6 +456,13 @@
     [MediaSaver detachFromController:self animated:animated];
 }
 
+- (void)wa_applicationDidEnterBackground {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
 %end
 
 %hook WAGenericMediaBrowserViewController
@@ -642,6 +649,13 @@
     %orig;
 }
 
+- (BOOL)isOsCompatibleForDescriptionView {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
 - (void)addSnapshotView:(id)arg1 {
     if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
         return;
@@ -738,6 +752,58 @@
 %hook _TtC23WAViewOnceMessageViewerP33_7691D041A7C67D05AF843B2696D5309037ViewOnceDisplayChatMessagesController
 
 - (BOOL)pausesPlaybackForScreenRecording {
+    if (WATweakGetBool(kDisableScreenRecordingPause, YES)) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+%hook UITextField
+
+- (void)setSecureTextEntry:(BOOL)enabled {
+    if (enabled && WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        %orig(NO);
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook UIView
+
+- (void)_setSecureContents:(BOOL)secure {
+    if (WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook NSNotificationCenter
+
+- (void)postNotificationName:(NSNotificationName)aName object:(id)anObject userInfo:(NSDictionary *)aUserInfo {
+    if ([aName isEqualToString:UIApplicationUserDidTakeScreenshotNotification] && WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig(aName, anObject, aUserInfo);
+}
+
+- (void)postNotification:(NSNotification *)notification {
+    if ([notification.name isEqualToString:UIApplicationUserDidTakeScreenshotNotification] && WATweakGetBool(kDisableScreenshotDetection, YES)) {
+        return;
+    }
+    %orig(notification);
+}
+
+%end
+
+%hook UIScreen
+
+- (BOOL)isCaptured {
     if (WATweakGetBool(kDisableScreenRecordingPause, YES)) {
         return NO;
     }

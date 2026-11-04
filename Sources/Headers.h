@@ -88,6 +88,11 @@
 @end
 
 @interface _TtC23WAViewOnceMessageViewer43ViewOnceMessageContentDisplayViewController : UIViewController
+- (void)wa_applicationDidEnterBackground;
+@end
+
+@interface UIView (TweakScreenshotFix)
+- (void)_setSecureContents:(BOOL)secure;
 @end
 
 @interface _TtC23WAViewOnceMessageViewerP33_7691D041A7C67D05AF843B2696D5309037ViewOnceDisplayChatMessagesController : NSObject

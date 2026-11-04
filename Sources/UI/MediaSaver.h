@@ -12,5 +12,6 @@
 + (void)showToast:(NSString *)message success:(BOOL)success;
 
 - (void)handleButtonTap:(id)sender;
+- (void)handleButtonPan:(UIPanGestureRecognizer *)pan;
 
 @end
