@@ -289,32 +289,6 @@ static BOOL HasOutgoingRevokedMessages(id arg1) {
     %orig;
 }
 
-- (void)internalRevokeMessages:(NSArray *)messages triggeredByMessageWithID:(id)messageID onDate:(id)date outgoing:(BOOL)outgoing revokedByAdminUserJID:(id)adminJID botPluginMessagesToDelete:(id)botMsgs beginTransactions:(BOOL)begin commitTransactions:(BOOL)commit {
-    if (WATweakGetBool(kAntiRevoke, YES) && !outgoing) {
-        WATweakLog(@"Suppressed internalRevokeMessages for incoming messages");
-        @try {
-            for (id msg in messages) {
-                if ([msg respondsToSelector:@selector(text)]) {
-                    NSString *txt = [msg text];
-                    if (txt && txt.length > 0 && ![txt hasPrefix:@"[DEL] "]) {
-                        if ([msg respondsToSelector:@selector(setText:)]) {
-                            [msg setText:[NSString stringWithFormat:@"[DEL] %@", txt]];
-                        }
-                    }
-                }
-            }
-        } @catch (NSException *e) {
-            WATweakLog(@"Exception in internalRevokeMessages: %@", e);
-        }
-        return;
-    }
-    @try {
-        %orig;
-    } @catch (NSException *e) {
-        WATweakLog(@"Exception in internalRevokeMessages %%orig: %@ (%@)", e.name, e.reason);
-    }
-}
-
 - (void)deleteExpiredViewOnceContent:(id)messages completion:(id)completion {
     if (WATweakGetBool(kUnlimitedViewOnce, YES)) {
         WATweakLog(@"Prevented deleteExpiredViewOnceContent");
