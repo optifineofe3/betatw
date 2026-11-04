@@ -49,7 +49,7 @@
     UIButton *applyButton = [UIButton buttonWithType:UIButtonTypeSystem];
     UIImage *applyImg = [UIImage systemImageNamed:@"checkmark.circle.fill"];
     [applyButton setImage:applyImg forState:UIControlStateNormal];
-    applyButton.tintColor = [UIColor systemBlueColor];
+    applyButton.tintColor = [UIColor systemGreenColor];
     [applyButton addTarget:self action:@selector(applyChanges) forControlEvents:UIControlEventTouchUpInside];
     
     UIBarButtonItem *applyItem = [[UIBarButtonItem alloc] initWithCustomView:applyButton];
@@ -127,7 +127,7 @@
     }
     
     UISwitch *toggle = [[UISwitch alloc] init];
-    toggle.onTintColor = [UIColor systemBlueColor];
+    toggle.onTintColor = [UIColor systemGreenColor];
     
     NSString *prefKey = nil;
     BOOL defaultVal = NO;
