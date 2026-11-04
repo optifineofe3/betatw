@@ -207,10 +207,70 @@
 
 #pragma mark - 5. Anti-Revoke (Preserve Deleted Messages)
 
+static inline BOOL WAMessageIsFromMe(id msg) {
+    if (!msg) return NO;
+    @try {
+        if ([msg respondsToSelector:@selector(isFromMe)]) {
+            return [msg isFromMe];
+        }
+        SEL fromMeSel = sel_registerName("fromMe");
+        if ([msg respondsToSelector:fromMeSel]) {
+            BOOL (*impl)(id, SEL) = (BOOL (*)(id, SEL))[msg methodForSelector:fromMeSel];
+            if (impl) return impl(msg, fromMeSel);
+        }
+    } @catch (NSException *e) {}
+    return NO;
+}
+
+static BOOL HasOutgoingRevokedMessages(id arg1) {
+    if (!arg1) return YES;
+    @try {
+        if ([arg1 isKindOfClass:[NSArray class]]) {
+            for (id item in (NSArray *)arg1) {
+                if (WAMessageIsFromMe(item)) return YES;
+            }
+            return NO;
+        }
+        if ([arg1 isKindOfClass:[NSSet class]]) {
+            for (id item in (NSSet *)arg1) {
+                if (WAMessageIsFromMe(item)) return YES;
+            }
+            return NO;
+        }
+        if ([arg1 isKindOfClass:[NSNotification class]]) {
+            NSDictionary *ui = [(NSNotification *)arg1 userInfo];
+            if (ui) {
+                for (id key in ui) {
+                    id val = ui[key];
+                    if ([val isKindOfClass:[NSArray class]]) {
+                        for (id item in (NSArray *)val) {
+                            if (WAMessageIsFromMe(item)) return YES;
+                        }
+                    } else if ([val isKindOfClass:[NSSet class]]) {
+                        for (id item in (NSSet *)val) {
+                            if (WAMessageIsFromMe(item)) return YES;
+                        }
+                    }
+                }
+            }
+            return NO;
+        }
+    } @catch (NSException *e) {}
+    return YES;
+}
+
 %hook WAChatStorage
 
 - (void)revokeIncomingMessage:(id)message triggeredByMessageWithID:(id)messageID onDate:(id)date outOfOrder:(BOOL)outOfOrder revokedByAdminUserJID:(id)adminJID deferAction:(id)deferAction {
     if (WATweakGetBool(kAntiRevoke, YES)) {
+        if (WAMessageIsFromMe(message)) {
+            @try {
+                %orig;
+            } @catch (NSException *e) {
+                WATweakLog(@"Exception in revokeIncomingMessage %%orig for outgoing: %@", e);
+            }
+            return;
+        }
         WATweakLog(@"Suppressed revokeIncomingMessage for message: %@", message);
         @try {
             if ([message respondsToSelector:@selector(text)]) {
@@ -248,7 +308,11 @@
         }
         return;
     }
-    %orig;
+    @try {
+        %orig;
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception in internalRevokeMessages %%orig: %@ (%@)", e.name, e.reason);
+    }
 }
 
 - (void)deleteExpiredViewOnceContent:(id)messages completion:(id)completion {
@@ -269,6 +333,9 @@
 
 - (BOOL)isRevoked {
     if (WATweakGetBool(kAntiRevoke, YES)) {
+        if (WAMessageIsFromMe(self)) {
+            return %orig;
+        }
         return NO;
     }
     return %orig;
@@ -276,6 +343,9 @@
 
 - (BOOL)isRevokedByAdmin {
     if (WATweakGetBool(kAntiRevoke, YES)) {
+        if (WAMessageIsFromMe(self)) {
+            return %orig;
+        }
         return NO;
     }
     return %orig;
@@ -283,6 +353,9 @@
 
 - (BOOL)isMessageRevoked {
     if (WATweakGetBool(kAntiRevoke, YES)) {
+        if (WAMessageIsFromMe(self)) {
+            return %orig;
+        }
         return NO;
     }
     return %orig;
@@ -322,6 +395,20 @@
 
 - (BOOL)isMessageRevoked {
     if (WATweakGetBool(kAntiRevoke, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(message)]) {
+                id msg = [self performSelector:@selector(message)];
+                if (WAMessageIsFromMe(msg)) {
+                    return %orig;
+                }
+            }
+            if ([self respondsToSelector:@selector(isFromMe)]) {
+                BOOL (*impl)(id, SEL) = (BOOL (*)(id, SEL))[self methodForSelector:@selector(isFromMe)];
+                if (impl && impl(self, @selector(isFromMe))) {
+                    return %orig;
+                }
+            }
+        } @catch (NSException *e) {}
         return NO;
     }
     return %orig;
@@ -333,6 +420,20 @@
 
 - (BOOL)snippetHideIfRevoked {
     if (WATweakGetBool(kAntiRevoke, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(message)]) {
+                id msg = [self performSelector:@selector(message)];
+                if (WAMessageIsFromMe(msg)) {
+                    return %orig;
+                }
+            }
+            if ([self respondsToSelector:@selector(isFromMe)]) {
+                BOOL (*impl)(id, SEL) = (BOOL (*)(id, SEL))[self methodForSelector:@selector(isFromMe)];
+                if (impl && impl(self, @selector(isFromMe))) {
+                    return %orig;
+                }
+            }
+        } @catch (NSException *e) {}
         return NO;
     }
     return %orig;
@@ -343,17 +444,25 @@
 %hook WAChatViewController
 
 - (void)chatStorageDidRevokeMessages:(id)arg1 {
-    if (WATweakGetBool(kAntiRevoke, YES)) {
+    if (WATweakGetBool(kAntiRevoke, YES) && !HasOutgoingRevokedMessages(arg1)) {
         return;
     }
-    %orig;
+    @try {
+        %orig;
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception in WAChatViewController chatStorageDidRevokeMessages: %@", e);
+    }
 }
 
 - (void)chatStorageWillRevokeMessages:(id)arg1 {
-    if (WATweakGetBool(kAntiRevoke, YES)) {
+    if (WATweakGetBool(kAntiRevoke, YES) && !HasOutgoingRevokedMessages(arg1)) {
         return;
     }
-    %orig;
+    @try {
+        %orig;
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception in WAChatViewController chatStorageWillRevokeMessages: %@", e);
+    }
 }
 
 %end
@@ -361,17 +470,25 @@
 %hook _TtC22WAChatMessagesVCStrict28WAChatMessagesViewController
 
 - (void)chatStorageDidRevokeMessages:(id)arg1 {
-    if (WATweakGetBool(kAntiRevoke, YES)) {
+    if (WATweakGetBool(kAntiRevoke, YES) && !HasOutgoingRevokedMessages(arg1)) {
         return;
     }
-    %orig;
+    @try {
+        %orig;
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception in WAChatMessagesViewController chatStorageDidRevokeMessages: %@", e);
+    }
 }
 
 - (void)chatStorageWillRevokeMessages:(id)arg1 {
-    if (WATweakGetBool(kAntiRevoke, YES)) {
+    if (WATweakGetBool(kAntiRevoke, YES) && !HasOutgoingRevokedMessages(arg1)) {
         return;
     }
-    %orig;
+    @try {
+        %orig;
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception in WAChatMessagesViewController chatStorageWillRevokeMessages: %@", e);
+    }
 }
 
 - (void)presentExpiredViewOnceAlertViewForMessage:(id)arg1 {

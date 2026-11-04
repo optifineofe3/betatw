@@ -1,0 +1,601 @@
+2026-11-04 02:35:11.477 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-04 02:35:11.478 [WATweak] SideloadFix initializing in pid=71863
+2026-11-04 02:35:11.478 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-04 02:35:11.484 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-04 02:35:11.505 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x10ed5d244
+2026-11-04 02:35:11.685 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-04 02:35:11.763 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:35:11.769 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-04 02:35:11.785 [WATweak] [UI] viewDidLoad: WAUpdatesNavigationController
+2026-11-04 02:35:11.790 [WATweak] [UI] viewDidLoad: WAChatNavigationController
+2026-11-04 02:35:11.806 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 02:35:11.811 [WATweak] [UI] viewDidLoad: WAChatListNavigationController
+2026-11-04 02:35:11.815 [WATweak] [UI] viewDidLoad: WASettingsNavigationController
+2026-11-04 02:35:11.821 [WATweak] [UI] viewDidLoad: WAParentGroupListNavigationController
+2026-11-04 02:35:11.825 [WATweak] [UI] viewDidLoad: WATabBarController
+2026-11-04 02:35:11.875 [WATweak] [UI] viewDidLoad: WAChatListViewController
+2026-11-04 02:35:11.890 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-04 02:35:11.959 [WATweak] [UI] viewDidAppear: WATabBarController
+2026-11-04 02:35:11.959 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 02:35:11.959 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 02:35:12.017 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-04 02:35:13.753 [WATweak] [UI] viewDidAppear: WASettingsNavigationController
+2026-11-04 02:35:13.754 [WATweak] [UI] viewDidLoad: WASettingsViewController
+2026-11-04 02:35:13.782 [WATweak] [UI] viewDidLoad: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 02:35:13.804 [WATweak] [UI] viewDidLoad: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 02:35:13.837 [WATweak] [UI] viewDidAppear: WASettingsViewController
+2026-11-04 02:35:14.594 [WATweak] [UI] viewDidAppear: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 02:35:16.225 [WATweak] [UI] viewDidLoad: UINavigationController
+2026-11-04 02:35:16.239 [WATweak] [UI] viewDidLoad: WAExtra
+2026-11-04 02:35:16.802 [WATweak] [UI] viewDidAppear: UINavigationController
+2026-11-04 02:35:16.803 [WATweak] [UI] viewDidAppear: WAExtra
+2026-11-04 02:35:20.598 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 02:35:20.598 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 02:35:21.748 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 02:35:21.792 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-04 02:35:21.793 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-04 02:35:21.838 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-04 02:35:22.133 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 02:35:26.427 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 02:35:26.513 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:35:26.518 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 02:35:26.899 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 02:35:50.575 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:35:50.585 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 02:35:51.232 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 02:35:52.185 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 02:35:52.712 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 02:35:55.288 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:35:55.298 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 02:35:55.667 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 02:35:59.024 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 02:36:00.081 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 02:36:00.606 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 02:36:01.830 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
+2026-11-04 02:36:01.840 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 02:36:02.355 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 02:41:18.213 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-04 02:41:18.214 [WATweak] SideloadFix initializing in pid=71913
+2026-11-04 02:41:18.214 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-04 02:41:18.219 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-04 02:41:18.240 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x1122cd244
+2026-11-04 02:41:18.427 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-04 02:41:18.503 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:41:18.512 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-04 02:41:18.525 [WATweak] [UI] viewDidLoad: WAUpdatesNavigationController
+2026-11-04 02:41:18.531 [WATweak] [UI] viewDidLoad: WAChatNavigationController
+2026-11-04 02:41:18.548 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 02:41:18.553 [WATweak] [UI] viewDidLoad: WAChatListNavigationController
+2026-11-04 02:41:18.558 [WATweak] [UI] viewDidLoad: WASettingsNavigationController
+2026-11-04 02:41:18.565 [WATweak] [UI] viewDidLoad: WAParentGroupListNavigationController
+2026-11-04 02:41:18.568 [WATweak] [UI] viewDidLoad: WATabBarController
+2026-11-04 02:41:18.620 [WATweak] [UI] viewDidLoad: WAChatListViewController
+2026-11-04 02:41:18.635 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-04 02:41:18.697 [WATweak] [UI] viewDidAppear: WATabBarController
+2026-11-04 02:41:18.698 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 02:41:18.698 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 02:41:18.757 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-04 02:41:20.077 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
+2026-11-04 02:41:21.643 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 02:41:21.677 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-04 02:41:21.678 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-04 02:41:21.745 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-04 02:41:22.053 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 02:41:24.691 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 02:41:24.778 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:41:24.780 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 02:41:25.182 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 02:41:38.837 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 02:41:38.849 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 02:41:39.219 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:13:48.257 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-04 04:13:48.258 [WATweak] SideloadFix initializing in pid=72660
+2026-11-04 04:13:48.264 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-04 04:13:48.270 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-04 04:13:48.290 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x10e371244
+2026-11-04 04:13:48.470 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-04 04:13:48.546 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:13:48.552 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-04 04:13:48.566 [WATweak] [UI] viewDidLoad: WAUpdatesNavigationController
+2026-11-04 04:13:48.570 [WATweak] [UI] viewDidLoad: WAChatNavigationController
+2026-11-04 04:13:48.587 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 04:13:48.592 [WATweak] [UI] viewDidLoad: WAChatListNavigationController
+2026-11-04 04:13:48.596 [WATweak] [UI] viewDidLoad: WASettingsNavigationController
+2026-11-04 04:13:48.602 [WATweak] [UI] viewDidLoad: WAParentGroupListNavigationController
+2026-11-04 04:13:48.605 [WATweak] [UI] viewDidLoad: WATabBarController
+2026-11-04 04:13:48.657 [WATweak] [UI] viewDidLoad: WAChatListViewController
+2026-11-04 04:13:48.671 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-04 04:13:48.733 [WATweak] [UI] viewDidAppear: WATabBarController
+2026-11-04 04:13:48.734 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:13:48.734 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:13:48.792 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-04 04:14:14.312 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:14:14.359 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-04 04:14:14.360 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-04 04:14:14.406 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-04 04:14:14.710 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:19:14.072 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:14.161 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:14.166 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:14.555 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:28.075 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:28.089 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:28.453 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:19:37.409 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:37.475 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:37.477 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:37.859 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:43.211 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:43.226 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:43.603 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:19:44.051 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:44.112 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:44.114 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:44.492 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:45.216 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:45.225 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:45.855 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:46.522 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:46.530 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:46.909 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:19:47.429 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:47.485 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:47.490 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:47.863 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:19:48.779 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:19:48.788 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:19:49.163 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:19:50.753 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:19:50.972 [WATweak] [UI] viewDidAppear: WASettingsNavigationController
+2026-11-04 04:19:50.975 [WATweak] [UI] viewDidLoad: WASettingsViewController
+2026-11-04 04:19:51.016 [WATweak] [UI] viewDidLoad: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 04:19:51.036 [WATweak] [UI] viewDidLoad: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 04:19:51.067 [WATweak] [UI] viewDidAppear: WASettingsViewController
+2026-11-04 04:19:51.765 [WATweak] [UI] viewDidAppear: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 04:19:53.487 [WATweak] [UI] viewDidLoad: UINavigationController
+2026-11-04 04:19:53.505 [WATweak] [UI] viewDidLoad: WAExtra
+2026-11-04 04:19:54.080 [WATweak] [UI] viewDidAppear: UINavigationController
+2026-11-04 04:19:54.081 [WATweak] [UI] viewDidAppear: WAExtra
+2026-11-04 04:20:31.067 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:20:31.067 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:20:31.817 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:20:32.176 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:20:55.550 [WATweak] [UI] viewDidLoad: WAContactInfoViewController
+2026-11-04 04:20:55.931 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:20:57.586 [WATweak] [UI] viewDidLoad: WAMediaGalleryControllers.MediaGalleryContainerViewController
+2026-11-04 04:20:57.594 [WATweak] [UI] viewDidLoad: WAMediaGalleryControllers.MediaGalleryViewController
+2026-11-04 04:20:57.929 [WATweak] [UI] viewDidAppear: WAMediaGalleryControllers.MediaGalleryContainerViewController
+2026-11-04 04:20:57.938 [WATweak] [UI] viewDidAppear: WAMediaGalleryControllers.MediaGalleryViewController
+2026-11-04 04:20:58.685 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:21:25.553 [WATweak] [UI] viewDidLoad: WANavigationController
+2026-11-04 04:21:25.558 [WATweak] [UI] viewDidLoad: WANewContactViewController
+2026-11-04 04:21:25.601 [WATweak] [UI] viewDidLoad: UIPredictionViewController
+2026-11-04 04:21:25.609 [WATweak] [UI] viewDidLoad: UICompatibilityInputViewController
+2026-11-04 04:21:25.661 [WATweak] [UI] viewDidLoad: UIInputWindowController
+2026-11-04 04:21:25.663 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-04 04:21:25.680 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:25.681 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: UIInputWindowController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: UIPredictionViewController
+2026-11-04 04:21:25.695 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-04 04:21:25.696 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-04 04:21:26.088 [WATweak] [UI] viewDidAppear: STKPrewarmingViewController
+2026-11-04 04:21:26.207 [WATweak] [UI] viewDidAppear: WANavigationController
+2026-11-04 04:21:26.208 [WATweak] [UI] viewDidAppear: WANewContactViewController
+2026-11-04 04:21:27.234 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 04:21:27.235 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 04:21:27.240 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:28.363 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
+2026-11-04 04:21:28.388 [WATweak] [UI] viewDidLoad: WAAlertController
+2026-11-04 04:21:28.424 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 04:21:28.844 [WATweak] [UI] viewDidAppear: WAAlertController
+2026-11-04 04:21:29.117 [WATweak] [UI] viewDidLoad: UIInputWindowController
+2026-11-04 04:21:29.122 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-04 04:21:29.142 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:29.164 [WATweak] [UI] viewDidAppear: UIInputWindowController
+2026-11-04 04:21:29.164 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:29.164 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:29.164 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
+2026-11-04 04:21:29.164 [WATweak] [UI] viewDidAppear: UIPredictionViewController
+2026-11-04 04:21:29.165 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-04 04:21:29.547 [WATweak] [UI] viewDidAppear: STKPrewarmingViewController
+2026-11-04 04:21:30.092 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 04:21:32.777 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:21:33.186 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 04:21:33.193 [WATweak] [UI] viewDidLoad: UIInputWindowController
+2026-11-04 04:21:33.195 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-04 04:21:33.205 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:33.232 [WATweak] [UI] viewDidAppear: UIInputWindowController
+2026-11-04 04:21:33.232 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:33.232 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 04:21:33.233 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
+2026-11-04 04:21:33.233 [WATweak] [UI] viewDidAppear: UIPredictionViewController
+2026-11-04 04:21:33.233 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-04 04:21:35.175 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:21:35.387 [WATweak] [UI] viewDidAppear: WAUpdatesNavigationController
+2026-11-04 04:21:35.416 [WATweak] [UI] viewDidLoad: WAUpdatesTabViewController
+2026-11-04 04:21:35.421 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 04:21:35.422 [WATweak] [UI] viewDidLoad: WASystemSearchController
+2026-11-04 04:21:35.426 [WATweak] [UI] viewDidAppear: WAUpdatesTabViewController
+2026-11-04 04:21:39.239 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:21:39.239 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:21:39.742 [WATweak] [UI] viewDidLoad: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 04:21:39.774 [WATweak] [UI] viewDidAppear: WASettingsNavigationController
+2026-11-04 04:21:39.775 [WATweak] [UI] viewDidAppear: WASettingsViewController
+2026-11-04 04:21:40.276 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:21:40.277 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:21:41.185 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:21:41.540 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:21:42.362 [WATweak] [UI] viewDidLoad: WAContactInfoViewController
+2026-11-04 04:21:42.734 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:21:46.194 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:21:47.292 [WATweak] [UI] viewDidLoad: WAContactInfoViewController
+2026-11-04 04:21:47.655 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:22:06.518 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:22:08.512 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:22:09.589 [WATweak] [UI] viewDidAppear: WAUpdatesNavigationController
+2026-11-04 04:22:09.590 [WATweak] [UI] viewDidAppear: WAUpdatesTabViewController
+2026-11-04 04:22:34.493 [WATweak] [UI] viewDidLoad: WAMediaPicker.SingleSelectionMediaPickerController
+2026-11-04 04:22:34.494 [WATweak] [UI] viewDidLoad: WAViewController
+2026-11-04 04:22:34.501 [WATweak] [UI] viewDidLoad: WAMediaPicker.AssetCollectionViewController
+2026-11-04 04:22:35.082 [WATweak] [UI] viewDidAppear: WAMediaPicker.SingleSelectionMediaPickerController
+2026-11-04 04:22:35.083 [WATweak] [UI] viewDidAppear: WAViewController
+2026-11-04 04:22:35.086 [WATweak] [UI] viewDidAppear: WAMediaPicker.AssetCollectionViewController
+2026-11-04 04:22:35.421 [WATweak] [UI] viewDidLoad: WAMediaPicker.LibraryViewController
+2026-11-04 04:22:35.500 [WATweak] [UI] viewDidAppear: WAMediaPicker.LibraryViewController
+2026-11-04 04:22:37.043 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:22:37.044 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:22:37.635 [WATweak] [UI] viewDidLoad: WAFOABridgesViews.WAFOAHScrollCollectionViewController
+2026-11-04 04:22:37.667 [WATweak] [UI] viewDidAppear: WASettingsNavigationController
+2026-11-04 04:22:37.667 [WATweak] [UI] viewDidAppear: WASettingsViewController
+2026-11-04 04:22:38.060 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:22:38.062 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:22:38.507 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:22:38.873 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:22:39.335 [WATweak] [UI] viewDidLoad: WAContactInfoViewController
+2026-11-04 04:22:39.709 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:22:41.247 [WATweak] [UI] viewDidLoad: WANavigationController
+2026-11-04 04:22:41.253 [WATweak] [UI] viewDidLoad: WANewContactViewController
+2026-11-04 04:22:41.842 [WATweak] [UI] viewDidAppear: WANavigationController
+2026-11-04 04:22:41.843 [WATweak] [UI] viewDidAppear: WANewContactViewController
+2026-11-04 04:22:48.514 [WATweak] [UI] viewDidLoad: WALimitSharing.LimitSharingSettingsViewController
+2026-11-04 04:22:48.580 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 04:22:48.871 [WATweak] [UI] viewDidAppear: WALimitSharing.LimitSharingSettingsViewController
+2026-11-04 04:22:49.090 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 04:23:05.590 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:23:06.271 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:23:33.621 [WATweak] Suppressed revokeIncomingMessage for message: 0xadab2e6b9b8c9249 <x-coredata://430B1D10-7D25-4AA3-9E45-625366EC8017/WAMessage/p41>
+2026-11-04 04:23:35.646 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:23:35.885 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:23:36.231 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:23:48.121 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:23:48.194 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:23:48.204 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:23:48.207 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:23:48.207 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:23:48.574 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:23:50.759 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:23:50.763 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:23:50.771 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:23:50.772 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:23:51.458 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:23:54.960 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 04:23:55.481 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 04:23:57.455 [WATweak] [UI] viewDidLoad: WAViewOnceInfoBottomSheetViewController
+2026-11-04 04:23:57.459 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 04:23:58.014 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 04:23:58.016 [WATweak] [UI] viewDidAppear: WAViewOnceInfoBottomSheetViewController
+2026-11-04 04:24:02.254 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:24:02.261 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:24:02.270 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:24:02.270 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:24:02.637 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:24:04.428 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:24:37.650 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:24:37.781 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
+2026-11-04 04:24:37.993 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:24:39.926 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:24:40.030 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:24:40.033 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:24:40.038 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:24:40.038 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:24:40.418 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:24:40.420 [WATweak] [UI] viewDidLoad: WAFNFPlayerMain.ExternalVideoPlayerController
+2026-11-04 04:55:37.310 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-04 04:55:37.312 [WATweak] SideloadFix initializing in pid=72880
+2026-11-04 04:55:37.312 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-04 04:55:37.318 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-04 04:55:37.345 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x10ed5d244
+2026-11-04 04:55:37.555 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-04 04:55:37.634 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:55:37.640 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-04 04:55:37.654 [WATweak] [UI] viewDidLoad: WAUpdatesNavigationController
+2026-11-04 04:55:37.659 [WATweak] [UI] viewDidLoad: WAChatNavigationController
+2026-11-04 04:55:37.676 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 04:55:37.681 [WATweak] [UI] viewDidLoad: WAChatListNavigationController
+2026-11-04 04:55:37.685 [WATweak] [UI] viewDidLoad: WASettingsNavigationController
+2026-11-04 04:55:37.692 [WATweak] [UI] viewDidLoad: WAParentGroupListNavigationController
+2026-11-04 04:55:37.695 [WATweak] [UI] viewDidLoad: WATabBarController
+2026-11-04 04:55:37.776 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-04 04:55:37.782 [WATweak] [UI] viewDidLoad: WAChatListViewController
+2026-11-04 04:55:37.798 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-04 04:55:37.859 [WATweak] [UI] viewDidAppear: WATabBarController
+2026-11-04 04:55:37.860 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:55:37.860 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:55:39.941 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:55:39.984 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-04 04:55:39.985 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-04 04:55:40.034 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-04 04:55:40.329 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:55:49.410 [WATweak] [UI] viewDidLoad: WAContactInfoViewController
+2026-11-04 04:55:49.805 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:56:24.068 [WATweak] [UI] viewDidLoad: WALimitSharing.LimitSharingSettingsViewController
+2026-11-04 04:56:24.426 [WATweak] [UI] viewDidAppear: WALimitSharing.LimitSharingSettingsViewController
+2026-11-04 04:56:26.745 [WATweak] [UI] viewDidAppear: WAContactInfoViewController
+2026-11-04 04:56:28.161 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:56:43.086 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:56:43.193 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:56:43.196 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:56:43.562 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:56:43.567 [WATweak] [UI] viewDidLoad: WAFNFPlayerMain.ExternalVideoPlayerController
+2026-11-04 04:58:09.668 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
+2026-11-04 04:58:11.505 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:58:11.516 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:58:11.880 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:58:14.098 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:58:14.173 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:58:14.182 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:58:14.588 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:58:30.665 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:58:30.671 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:58:31.030 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:58:31.999 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:58:32.092 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:58:32.097 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:58:32.462 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:58:34.115 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:58:34.124 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:58:34.485 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:58:54.038 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:58:54.128 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:58:54.130 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:58:54.503 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:59:02.382 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:59:02.388 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:59:02.749 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 04:59:29.764 [WATweak] [UI] viewDidLoad: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:59:29.861 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:59:29.864 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:59:30.248 [WATweak] [UI] viewDidAppear: WAMediaBrowserControllers.MediaBrowserTestViewController
+2026-11-04 04:59:35.417 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:59:35.422 [WATweak] [UI] viewDidAppear: UIViewController
+2026-11-04 04:59:35.866 [WATweak] [UI] viewDidAppear: WAChatViewController
+
+==================== CRASH: abort() CALLED ====================
+0   Tweak.dylib                         0x0000000100b42340 _ZL10hook_abortv + 152
+1   SharedModules                       0x000000010eabbb10 _ZN3MD56updateEPKhj + 31628
+2   SharedModules                       0x000000010f42ecd0 -<UITraitCollection meta_hasVerticalBar>D + 25900
+3   SharedModules                       0x000000010e11297c WAHandleFailureInFunction + 196
+4   WhatsApp                            0x00000001155abc28 XPluginsGetListLookupDataPair + 44142032
+5   UIKitCore                           0x00000001a4271358 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1237848
+6   UIKitCore                           0x00000001a42dbdc0 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1674688
+7   UIKitCore                           0x00000001a42dbb64 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1674084
+8   UIKitCore                           0x00000001a438c2d8 9EE8C19A-A370-3599-823B-34B84131AAD7 + 2396888
+9   FrontBoardServices                  0x00000001bf10fa7c D784C2AB-3079-3F2F-AE2E-1B12852F9A9B + 133756
+10  FrontBoardServices                  0x00000001bf10f8ac D784C2AB-3079-3F2F-AE2E-1B12852F9A9B + 133292
+11  FrontBoardServices                  0x00000001bf10f4e8 D784C2AB-3079-3F2F-AE2E-1B12852F9A9B + 132328
+12  FrontBoardServices                  0x00000001bf11c38c D784C2AB-3079-3F2F-AE2E-1B12852F9A9B + 185228
+13  FrontBoardServices                  0x00000001bf11c118 D784C2AB-3079-3F2F-AE2E-1B12852F9A9B + 184600
+14  FrontBoardServices                  0x00000001bf113520 D784C2AB-3079-3F2F-AE2E-1B12852F9A9B + 148768
+15  libdispatch.dylib                   0x00000001d89791e4 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 111076
+16  libdispatch.dylib                   0x00000001d8964694 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 26260
+17  BoardServices                       0x00000001b66e0f84 C69AE856-F57A-36C9-8708-38C757922A51 + 180100
+18  BoardServices                       0x00000001b66e0e00 C69AE856-F57A-36C9-8708-38C757922A51 + 179712
+19  CoreFoundation                      0x000000019e5dd358 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 656216
+20  CoreFoundation                      0x000000019e5dd2cc FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 656076
+21  CoreFoundation                      0x000000019e5a25a8 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 415144
+22  CoreFoundation                      0x000000019e56c1a0 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 192928
+23  CoreFoundation                      0x000000019e56b54c FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 189772
+24  GraphicsServices                    0x0000000243cd7498 GSEventRunModal + 120
+25  UIKitCore                           0x00000001a4264244 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1184324
+26  UIKitCore                           0x00000001a41cf158 UIApplicationMain + 332
+27  WhatsApp                            0x0000000112aa01cc XPluginsGetDataPair + 67224
+28  LiveContainerShared                 0x0000000100a3f0f8 invokeAppMain + 7484
+29  LiveContainerShared                 0x0000000100a3cb50 LiveContainerMain + 2360
+30  dyld                                0x000000019b179c1c 41DE795B-9283-37FD-917E-D674BB73F541 + 19484
+===============================================================
+
+2026-11-04 04:59:58.163 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-04 04:59:58.163 [WATweak] SideloadFix initializing in pid=72922
+2026-11-04 04:59:58.164 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-04 04:59:58.168 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-04 04:59:58.175 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x112d5d244
+2026-11-04 04:59:58.322 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-04 04:59:58.385 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 04:59:58.390 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-04 04:59:58.404 [WATweak] [UI] viewDidLoad: WAUpdatesNavigationController
+2026-11-04 04:59:58.409 [WATweak] [UI] viewDidLoad: WAChatNavigationController
+2026-11-04 04:59:58.425 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 04:59:58.431 [WATweak] [UI] viewDidLoad: WAChatListNavigationController
+2026-11-04 04:59:58.434 [WATweak] [UI] viewDidLoad: WASettingsNavigationController
+2026-11-04 04:59:58.441 [WATweak] [UI] viewDidLoad: WAParentGroupListNavigationController
+2026-11-04 04:59:58.444 [WATweak] [UI] viewDidLoad: WATabBarController
+2026-11-04 04:59:58.493 [WATweak] [UI] viewDidLoad: WAChatListViewController
+2026-11-04 04:59:58.506 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-04 04:59:58.565 [WATweak] [UI] viewDidAppear: WATabBarController
+2026-11-04 04:59:58.566 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 04:59:58.566 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 04:59:58.626 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-04 04:59:59.660 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 04:59:59.699 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-04 04:59:59.700 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-04 04:59:59.748 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-04 05:00:00.042 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 05:00:00.683 [WATweak] [UI] viewDidLoad: UIPredictionViewController
+2026-11-04 05:00:00.721 [WATweak] [UI] viewDidAppear: _UICursorAccessoryViewController
+2026-11-04 05:00:00.729 [WATweak] [UI] viewDidLoad: UIInputWindowController
+2026-11-04 05:00:00.732 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-04 05:00:00.748 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 05:00:00.749 [WATweak] [UI] viewDidLoad: UISystemKeyboardDockController
+2026-11-04 05:00:00.754 [WATweak] [UI] viewDidAppear: UIInputWindowController
+2026-11-04 05:00:00.754 [WATweak] [UI] viewDidAppear: UICompatibilityInputViewController
+2026-11-04 05:00:00.754 [WATweak] [UI] viewDidAppear: UISystemInputAssistantViewController
+2026-11-04 05:00:00.754 [WATweak] [UI] viewDidAppear: UIPredictionViewController
+2026-11-04 05:00:00.754 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-04 05:00:00.754 [WATweak] [UI] viewDidAppear: UISystemKeyboardDockController
+2026-11-04 05:00:01.736 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 05:00:02.272 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 05:00:04.516 [WATweak] [UI] viewDidLoad: WAMediaPicker.SendBarMediaPickerController
+2026-11-04 05:00:04.534 [WATweak] [UI] viewDidLoad: WAViewController
+2026-11-04 05:00:04.538 [WATweak] [UI] viewDidLoad: WAMediaPicker.AssetCollectionViewController
+2026-11-04 05:00:05.100 [WATweak] [UI] viewDidAppear: WAMediaPicker.SendBarMediaPickerController
+2026-11-04 05:00:05.101 [WATweak] [UI] viewDidAppear: WAViewController
+2026-11-04 05:00:05.109 [WATweak] [UI] viewDidAppear: WAMediaPicker.AssetCollectionViewController
+2026-11-04 05:00:06.928 [WATweak] [UI] viewDidLoad: PUPickerUnavailableViewController
+2026-11-04 05:00:06.936 [WATweak] [UI] viewDidLoad: UINavigationController
+2026-11-04 05:00:06.940 [WATweak] [UI] viewDidLoad: PHPickerViewController
+2026-11-04 05:00:06.941 [WATweak] [UI] viewDidLoad: UISplitViewController
+2026-11-04 05:00:07.046 [WATweak] [UI] viewDidLoad: _UISceneHostingViewController
+2026-11-04 05:00:07.047 [WATweak] [UI] viewDidLoad: PUPickerRemoteViewController
+2026-11-04 05:00:07.711 [WATweak] [UI] viewDidAppear: PHPickerViewController
+2026-11-04 05:00:07.713 [WATweak] [UI] viewDidAppear: PUPickerRemoteViewController
+2026-11-04 05:00:07.714 [WATweak] [UI] viewDidAppear: _UISceneHostingViewController
+2026-11-04 05:00:12.595 [WATweak] [UI] viewDidLoad: WAViewOnceInfoBottomSheetViewController
+2026-11-04 05:00:12.603 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 05:00:13.140 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+2026-11-04 05:00:13.141 [WATweak] [UI] viewDidAppear: WAViewOnceInfoBottomSheetViewController
+2026-11-04 05:00:20.328 [WATweak] [UI] viewDidLoad: _UIAlertControllerTextFieldViewController
+2026-11-04 05:00:52.675 [WATweak] [UI] viewDidLoad: WAContextMenuController
+2026-11-04 05:00:52.828 [WATweak] [UI] viewDidAppear: WAContextMenuController
+2026-11-04 05:00:54.914 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 05:00:55.451 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+
+==================== CRASH: SIGNAL 6 ====================
+0   Tweak.dylib                         0x0000000104d22038 _ZL17our_signalHandleriP9__siginfoPv + 180
+1   libsystem_platform.dylib            0x00000002bf5161b8 BDCDC3C3-CFAC-3030-958F-49047F12C464 + 16824
+2   libsystem_kernel.dylib              0x000000024d6e7678 EB06421E-7AA8-303F-AAAB-B7501B063F9D + 214648
+3   libsystem_kernel.dylib              0x000000024d6e7610 EB06421E-7AA8-303F-AAAB-B7501B063F9D + 214544
+4   libobjc.A.dylib                     0x000000019b10b110 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 110864
+5   libobjc.A.dylib                     0x000000019b10b09c 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 110748
+6   libobjc.A.dylib                     0x000000019b0f73a0 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 29600
+7   libobjc.A.dylib                     0x000000019b0f38e4 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 14564
+8   WhatsApp                            0x00000001170d9bfc XPluginsGetListLookupDataPair + 5533092
+9   Tweak.dylib                         0x0000000104d26dd4 _ZL188_logos_method$_ungrouped$WAChatStorage$internalRevokeMessages$triggeredByMessageWithID$onDate$outgoing$revokedByAdminUserJID$botPluginMessagesToDelete$beginTransactions$commitTransactions$P13WAChatStorageP13objc_selectorP7NSArrayP11objc_objectS6_bS6_S6_bb + 1300
+10  WhatsApp                            0x00000001192fcff8 XPluginsGetListLookupDataPair + 41329056
+11  WhatsApp                            0x000000011993f578 XPluginsGetListLookupDataPair + 47892256
+12  WhatsApp                            0x00000001194e7e9c XPluginsGetListLookupDataPair + 43339844
+13  SharedModules                       0x0000000111cfc8e8 -<WamEventWamoClientEvents setWamo_waffle_link_status:>D + 19592
+14  SharedModules                       0x00000001121d6cf0 FXAccessLibraryGetNativeAuthDataForBloks + 629448
+15  SharedModules                       0x0000000111b4900c -<UIView meta_displayBrightness>D + 10092
+16  SharedModules                       0x000000011119036c METAGetNSFileModificationDate_C617_1 + 11044
+17  SharedModules                       0x00000001121d7944 FXAccessLibraryGetNativeAuthDataForBloks + 632604
+18  SharedModules                       0x0000000111188d80 -<WamEventContactInfo profile_links_destinations>D + 26736
+19  UIKitCore                           0x00000001a42e5f48 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1716040
+20  UIKitCore                           0x00000001a42e6e7c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1719932
+21  UIKitCore                           0x00000001a429546c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1385580
+22  UIKitCore                           0x00000001a43ad308 9EE8C19A-A370-3599-823B-34B84131AAD7 + 2532104
+23  UIKitCore                           0x00000001a43acf8c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 2531212
+24  UIKitCore                           0x00000001a424ece0 __UIVIEW_IS_EXECUTING_ANIMATION_COMPLETION_BLOCK__ + 36
+25  UIKitCore                           0x00000001a416f630 9EE8C19A-A370-3599-823B-34B84131AAD7 + 181808
+26  UIKitCore                           0x00000001a416f0e4 9EE8C19A-A370-3599-823B-34B84131AAD7 + 180452
+27  UIKitCore                           0x00000001a42562f4 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1127156
+28  UIKitCore                           0x00000001a4256368 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1127272
+29  QuartzCore                          0x000000019f0137b0 2BCF094C-81C6-3CBD-AC51-669C99AD7C1C + 960432
+30  libdispatch.dylib                   0x00000001d89791e4 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 111076
+31  libdispatch.dylib                   0x00000001d8996e10 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 232976
+32  libdispatch.dylib                   0x00000001d896e964 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 67940
+33  libdispatch.dylib                   0x00000001d896e8a4 _dispatch_main_queue_callback_4CF + 44
+34  CoreFoundation                      0x000000019e5df030 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 663600
+35  CoreFoundation                      0x000000019e56c604 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 194052
+36  CoreFoundation                      0x000000019e56b54c FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 189772
+37  GraphicsServices                    0x0000000243cd7498 GSEventRunModal + 120
+38  UIKitCore                           0x00000001a4264244 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1184324
+39  UIKitCore                           0x00000001a41cf158 UIApplicationMain + 332
+40  WhatsApp                            0x0000000116aa01cc XPluginsGetDataPair + 67224
+41  LiveContainerShared                 0x0000000104c1f0f8 invokeAppMain + 7484
+42  LiveContainerShared                 0x0000000104c1cb50 LiveContainerMain + 2360
+43  dyld                                0x000000019b179c1c 41DE795B-9283-37FD-917E-D674BB73F541 + 19484
+==========================================================
+
+2026-11-04 05:01:02.271 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-04 05:01:02.272 [WATweak] SideloadFix initializing in pid=72939
+2026-11-04 05:01:02.272 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-04 05:01:02.277 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-04 05:01:02.284 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x11315d244
+2026-11-04 05:01:02.430 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-04 05:01:02.493 [WATweak] [UI] viewDidLoad: UIViewController
+2026-11-04 05:01:02.499 [WATweak] [UI] viewDidLoad: WARootViewController
+2026-11-04 05:01:02.513 [WATweak] [UI] viewDidLoad: WAUpdatesNavigationController
+2026-11-04 05:01:02.517 [WATweak] [UI] viewDidLoad: WAChatNavigationController
+2026-11-04 05:01:02.533 [WATweak] [UI] viewDidLoad: WASearchControllerViewController
+2026-11-04 05:01:02.539 [WATweak] [UI] viewDidLoad: WAChatListNavigationController
+2026-11-04 05:01:02.542 [WATweak] [UI] viewDidLoad: WASettingsNavigationController
+2026-11-04 05:01:02.549 [WATweak] [UI] viewDidLoad: WAParentGroupListNavigationController
+2026-11-04 05:01:02.552 [WATweak] [UI] viewDidLoad: WATabBarController
+2026-11-04 05:01:02.599 [WATweak] [UI] viewDidLoad: WAChatListViewController
+2026-11-04 05:01:02.612 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-04 05:01:02.672 [WATweak] [UI] viewDidAppear: WATabBarController
+2026-11-04 05:01:02.672 [WATweak] [UI] viewDidAppear: WAChatListNavigationController
+2026-11-04 05:01:02.672 [WATweak] [UI] viewDidAppear: WAChatListViewController
+2026-11-04 05:01:02.720 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-04 05:01:03.986 [WATweak] [UI] viewDidLoad: WAChatViewController
+2026-11-04 05:01:04.025 [WATweak] [UI] viewDidLoad: UITrackingElementWindowController
+2026-11-04 05:01:04.026 [WATweak] [UI] viewDidLoad: UIEditingOverlayViewController
+2026-11-04 05:01:04.074 [WATweak] [UI] viewDidAppear: UITrackingElementWindowController
+2026-11-04 05:01:04.382 [WATweak] [UI] viewDidAppear: WAChatViewController
+2026-11-04 05:01:05.228 [WATweak] [UI] viewDidLoad: WAContextMenuController
+2026-11-04 05:01:05.410 [WATweak] [UI] viewDidAppear: WAContextMenuController
+2026-11-04 05:01:07.379 [WATweak] [UI] viewDidLoad: WDSSheetViewController
+2026-11-04 05:01:07.911 [WATweak] [UI] viewDidAppear: WDSSheetViewController
+
+==================== CRASH: SIGNAL 6 ====================
+0   Tweak.dylib                         0x0000000105102038 _ZL17our_signalHandleriP9__siginfoPv + 180
+1   libsystem_platform.dylib            0x00000002bf5161b8 BDCDC3C3-CFAC-3030-958F-49047F12C464 + 16824
+2   libsystem_kernel.dylib              0x000000024d6e7678 EB06421E-7AA8-303F-AAAB-B7501B063F9D + 214648
+3   libsystem_kernel.dylib              0x000000024d6e7610 EB06421E-7AA8-303F-AAAB-B7501B063F9D + 214544
+4   libobjc.A.dylib                     0x000000019b10b110 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 110864
+5   libobjc.A.dylib                     0x000000019b10b09c 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 110748
+6   libobjc.A.dylib                     0x000000019b0f73a0 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 29600
+7   libobjc.A.dylib                     0x000000019b0f38e4 0AB507CF-CB12-3CCD-9967-9AAC912AF8E1 + 14564
+8   WhatsApp                            0x00000001174d9bfc XPluginsGetListLookupDataPair + 5533092
+9   Tweak.dylib                         0x0000000105106dd4 _ZL188_logos_method$_ungrouped$WAChatStorage$internalRevokeMessages$triggeredByMessageWithID$onDate$outgoing$revokedByAdminUserJID$botPluginMessagesToDelete$beginTransactions$commitTransactions$P13WAChatStorageP13objc_selectorP7NSArrayP11objc_objectS6_bS6_S6_bb + 1300
+10  WhatsApp                            0x00000001196fcff8 XPluginsGetListLookupDataPair + 41329056
+11  WhatsApp                            0x0000000119d3f578 XPluginsGetListLookupDataPair + 47892256
+12  WhatsApp                            0x00000001198e7e9c XPluginsGetListLookupDataPair + 43339844
+13  SharedModules                       0x00000001120fc8e8 -<WamEventWamoClientEvents setWamo_waffle_link_status:>D + 19592
+14  SharedModules                       0x00000001125d6cf0 FXAccessLibraryGetNativeAuthDataForBloks + 629448
+15  SharedModules                       0x0000000111f4900c -<UIView meta_displayBrightness>D + 10092
+16  SharedModules                       0x000000011159036c METAGetNSFileModificationDate_C617_1 + 11044
+17  SharedModules                       0x00000001125d7944 FXAccessLibraryGetNativeAuthDataForBloks + 632604
+18  SharedModules                       0x0000000111588d80 -<WamEventContactInfo profile_links_destinations>D + 26736
+19  UIKitCore                           0x00000001a42e5f48 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1716040
+20  UIKitCore                           0x00000001a42e6e7c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1719932
+21  UIKitCore                           0x00000001a429546c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1385580
+22  UIKitCore                           0x00000001a43ad308 9EE8C19A-A370-3599-823B-34B84131AAD7 + 2532104
+23  UIKitCore                           0x00000001a43acf8c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 2531212
+24  UIKitCore                           0x00000001a424ece0 __UIVIEW_IS_EXECUTING_ANIMATION_COMPLETION_BLOCK__ + 36
+25  UIKitCore                           0x00000001a416f630 9EE8C19A-A370-3599-823B-34B84131AAD7 + 181808
+26  UIKitCore                           0x00000001a416f0e4 9EE8C19A-A370-3599-823B-34B84131AAD7 + 180452
+27  UIKitCore                           0x00000001a42562f4 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1127156
+28  UIKitCore                           0x00000001a4256368 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1127272
+29  QuartzCore                          0x000000019f0137b0 2BCF094C-81C6-3CBD-AC51-669C99AD7C1C + 960432
+30  libdispatch.dylib                   0x00000001d89791e4 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 111076
+31  libdispatch.dylib                   0x00000001d8996e10 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 232976
+32  libdispatch.dylib                   0x00000001d896e964 E1A24FA0-2160-3366-AE7E-420F0FA3C5BC + 67940
+33  libdispatch.dylib                   0x00000001d896e8a4 _dispatch_main_queue_callback_4CF + 44
+34  CoreFoundation                      0x000000019e5df030 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 663600
+35  CoreFoundation                      0x000000019e56c604 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 194052
+36  CoreFoundation                      0x000000019e56b54c FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 189772
+37  GraphicsServices                    0x0000000243cd7498 GSEventRunModal + 120
+38  UIKitCore                           0x00000001a4264244 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1184324
+39  UIKitCore                           0x00000001a41cf158 UIApplicationMain + 332
+40  WhatsApp                            0x0000000116ea01cc XPluginsGetDataPair + 67224
+41  LiveContainerShared                 0x0000000104fff0f8 invokeAppMain + 7484
+42  LiveContainerShared                 0x0000000104ffcb50 LiveContainerMain + 2360
+43  dyld                                0x000000019b179c1c 41DE795B-9283-37FD-917E-D674BB73F541 + 19484
+==========================================================
+

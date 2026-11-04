@@ -60,6 +60,7 @@
 @end
 
 @interface WAMessage : NSObject
+@property (nonatomic, assign) BOOL isFromMe;
 @property (nonatomic, assign) BOOL isViewOnce;
 @property (nonatomic, assign) int64_t viewOnceCount;
 - (BOOL)isVideo;
@@ -75,6 +76,8 @@
 - (NSString *)text;
 - (void)setText:(NSString *)text;
 - (id)mediaItem;
+- (BOOL)isFromMe;
+- (BOOL)fromMe;
 @end
 
 @interface WAChatStorage : NSObject
