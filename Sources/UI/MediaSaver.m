@@ -240,92 +240,291 @@ static id safeInvokeGetter(id obj, NSString *selectorName) {
     return nil;
 }
 
-static NSString *extractPathFromPlayer(id player) {
-    if (!player) return nil;
-    @try {
-        id item = safeInvokeGetter(player, @"currentItem");
-        if (!item && [player respondsToSelector:@selector(playerItem)]) {
-            item = safeInvokeGetter(player, @"playerItem");
+static NSString *extractVideoPathFromAnyObject(id obj) {
+    if (!obj) return nil;
+    
+    // Check known URL and path getters / properties
+    NSArray *selectors = @[
+        @"assetURL", @"_assetURL",
+        @"cachedMediaActivityItemURL", @"_cachedMediaActivityItemURL",
+        @"mediaFilePath", @"_mediaFilePath",
+        @"plaintextFilePath", @"_plaintextFilePath",
+        @"videoURL", @"fileURL", @"mediaURL", @"contentURL", @"streamingURL",
+        @"wa_fileURL", @"mediaLocalPath", @"path", @"fullPath", @"filePath", @"originalMediaLocalPath"
+    ];
+    
+    for (NSString *sel in selectors) {
+        id val = safeInvokeGetter(obj, sel);
+        if (!val) {
+            @try { val = [obj valueForKey:sel]; } @catch (NSException *e) {}
+        }
+        if (val) {
+            if ([val isKindOfClass:[NSURL class]]) {
+                NSURL *u = (NSURL *)val;
+                if (u.path) {
+                    NSString *resolved = resolveExistingFilePath(u.path);
+                    if (resolved) {
+                        NSString *ext = [[resolved pathExtension] lowercaseString];
+                        if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                            return resolved;
+                        }
+                    }
+                }
+            } else if ([val isKindOfClass:[NSString class]]) {
+                NSString *resolved = resolveExistingFilePath((NSString *)val);
+                if (resolved) {
+                    NSString *ext = [[resolved pathExtension] lowercaseString];
+                    if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                        return resolved;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Check AVAsset / AVURLAsset
+    for (NSString *sel in @[@"asset", @"_asset"]) {
+        id asset = safeInvokeGetter(obj, sel);
+        if (!asset) {
+            @try { asset = [obj valueForKey:sel]; } @catch (NSException *e) {}
+        }
+        if (asset) {
+            if ([asset isKindOfClass:[AVURLAsset class]]) {
+                NSURL *u = [(AVURLAsset *)asset URL];
+                if (u.path) {
+                    NSString *resolved = resolveExistingFilePath(u.path);
+                    if (resolved) return resolved;
+                }
+            }
+            id uObj = safeInvokeGetter(asset, @"URL");
+            if (uObj && [uObj isKindOfClass:[NSURL class]]) {
+                NSString *resolved = resolveExistingFilePath(((NSURL *)uObj).path);
+                if (resolved) return resolved;
+            }
+        }
+    }
+    
+    // Check AVPlayerItem
+    for (NSString *sel in @[@"currentItem", @"playerItem", @"_playerItem"]) {
+        id item = safeInvokeGetter(obj, sel);
+        if (!item) {
+            @try { item = [obj valueForKey:sel]; } @catch (NSException *e) {}
         }
         if (item) {
             id asset = safeInvokeGetter(item, @"asset");
             if (asset) {
                 if ([asset isKindOfClass:[AVURLAsset class]]) {
-                    NSURL *url = [(AVURLAsset *)asset URL];
-                    if (url.isFileURL && url.path) {
-                        return url.path;
+                    NSURL *u = [(AVURLAsset *)asset URL];
+                    if (u.path) {
+                        NSString *resolved = resolveExistingFilePath(u.path);
+                        if (resolved) return resolved;
                     }
                 }
-                id urlObj = safeInvokeGetter(asset, @"URL");
-                if (urlObj && [urlObj isKindOfClass:[NSURL class]]) {
-                    NSURL *url = (NSURL *)urlObj;
-                    if (url.isFileURL && url.path) {
-                        return url.path;
+                id uObj = safeInvokeGetter(asset, @"URL");
+                if (uObj && [uObj isKindOfClass:[NSURL class]]) {
+                    NSString *resolved = resolveExistingFilePath(((NSURL *)uObj).path);
+                    if (resolved) return resolved;
+                }
+            }
+        }
+    }
+    
+    // Check sub-player objects
+    for (NSString *sel in @[@"mediaPlayer", @"_mediaPlayer", @"playerView", @"_playerView", @"player", @"_player", @"playbackController", @"videoPlayer"]) {
+        id sub = safeInvokeGetter(obj, sel);
+        if (!sub) {
+            @try { sub = [obj valueForKey:sel]; } @catch (NSException *e) {}
+        }
+        if (sub && sub != obj) {
+            NSString *p = extractVideoPathFromAnyObject(sub);
+            if (p) return p;
+        }
+    }
+    
+    return nil;
+}
+
+static NSString *findVideoPathInViewHierarchy(UIView *view) {
+    if (!view) return nil;
+    
+    // 1. Direct object inspection
+    NSString *p = extractVideoPathFromAnyObject(view);
+    if (p) return p;
+    
+    // 2. Layer inspection
+    if (view.layer) {
+        p = extractVideoPathFromAnyObject(view.layer);
+        if (p) return p;
+        for (CALayer *sub in view.layer.sublayers) {
+            p = extractVideoPathFromAnyObject(sub);
+            if (p) return p;
+        }
+    }
+    
+    // 3. Ivars inspection of custom cells and player views
+    unsigned int count = 0;
+    Ivar *ivars = class_copyIvarList([view class], &count);
+    if (ivars) {
+        for (unsigned int i = 0; i < count; i++) {
+            const char *name = ivar_getName(ivars[i]);
+            if (name && (strstr(name, "player") || strstr(name, "Player") ||
+                         strstr(name, "asset") || strstr(name, "Asset") ||
+                         strstr(name, "video") || strstr(name, "Video") ||
+                         strstr(name, "media") || strstr(name, "Media"))) {
+                id val = object_getIvar(view, ivars[i]);
+                if (val && val != view) {
+                    p = extractVideoPathFromAnyObject(val);
+                    if (p) {
+                        free(ivars);
+                        return p;
                     }
                 }
             }
         }
-    } @catch (NSException *e) {}
+        free(ivars);
+    }
+    
+    // 4. Subviews recursion
+    for (UIView *sub in view.subviews) {
+        p = findVideoPathInViewHierarchy(sub);
+        if (p) return p;
+    }
+    
     return nil;
 }
 
-static NSString *extractPathFromPlayerLayer(CALayer *layer) {
-    if (!layer) return nil;
-    @try {
-        if ([layer isKindOfClass:[AVPlayerLayer class]]) {
-            AVPlayer *p = [(AVPlayerLayer *)layer player];
-            NSString *path = extractPathFromPlayer(p);
-            if (path) return path;
-        }
-        id player = safeInvokeGetter(layer, @"player");
-        if (player) {
-            NSString *path = extractPathFromPlayer(player);
-            if (path) return path;
-        }
-    } @catch (NSException *e) {}
-    return nil;
-}
-
-static NSString *findVideoPathInController(UIViewController *ctrl) {
+static NSString *findVideoPathInControllerHierarchy(UIViewController *ctrl) {
     if (!ctrl) return nil;
-    for (NSString *sel in @[@"player", @"videoPlayer", @"avPlayer", @"mediaPlayer", @"videoPlayerController", @"playerController"]) {
-        id p = safeInvokeGetter(ctrl, sel);
-        NSString *path = extractPathFromPlayer(p);
-        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
-        if (p && [p isKindOfClass:[UIViewController class]]) {
-            NSString *childPath = findVideoPathInController((UIViewController *)p);
-            if (childPath && [[NSFileManager defaultManager] fileExistsAtPath:childPath]) return childPath;
+    
+    // 1. Controller itself
+    NSString *p = extractVideoPathFromAnyObject(ctrl);
+    if (p) return p;
+    
+    // 2. Controller ivars (e.g. protectedViewController, message, player)
+    unsigned int count = 0;
+    Ivar *ivars = class_copyIvarList([ctrl class], &count);
+    if (ivars) {
+        for (unsigned int i = 0; i < count; i++) {
+            const char *name = ivar_getName(ivars[i]);
+            if (name && (strstr(name, "player") || strstr(name, "Player") ||
+                         strstr(name, "video") || strstr(name, "Video") ||
+                         strstr(name, "protectedViewController") ||
+                         strstr(name, "message") || strstr(name, "Message"))) {
+                id val = object_getIvar(ctrl, ivars[i]);
+                if (val && val != ctrl) {
+                    p = extractVideoPathFromAnyObject(val);
+                    if (p) {
+                        free(ivars);
+                        return p;
+                    }
+                    if ([val isKindOfClass:[UIViewController class]]) {
+                        p = findVideoPathInControllerHierarchy((UIViewController *)val);
+                        if (p) {
+                            free(ivars);
+                            return p;
+                        }
+                    }
+                }
+            }
         }
+        free(ivars);
     }
+    
+    // 3. View hierarchy
+    if (ctrl.isViewLoaded) {
+        p = findVideoPathInViewHierarchy(ctrl.view);
+        if (p) return p;
+    }
+    
+    // 4. Child view controllers
     for (UIViewController *child in ctrl.childViewControllers) {
-        NSString *path = findVideoPathInController(child);
-        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
+        p = findVideoPathInControllerHierarchy(child);
+        if (p) return p;
     }
+    
+    // 5. Parent view controller
+    if (ctrl.parentViewController) {
+        p = extractVideoPathFromAnyObject(ctrl.parentViewController);
+        if (p) return p;
+    }
+    
     return nil;
 }
 
-static NSString *findVideoPathInView(UIView *view) {
-    if (!view) return nil;
+static NSString *findRecentVideoFile(void) {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSMutableArray *dirs = [NSMutableArray array];
     
-    for (NSString *sel in @[@"player", @"videoPlayer", @"avPlayer"]) {
-        id p = safeInvokeGetter(view, sel);
-        NSString *path = extractPathFromPlayer(p);
-        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
+    NSString *tmp = NSTemporaryDirectory();
+    if (tmp) [dirs addObject:tmp];
+    
+    NSString *caches = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
+    if (caches) {
+        [dirs addObject:caches];
+        [dirs addObject:[caches stringByAppendingPathComponent:@"Media"]];
     }
     
-    NSString *path = extractPathFromPlayerLayer(view.layer);
-    if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
-    
-    for (CALayer *sub in view.layer.sublayers) {
-        path = extractPathFromPlayerLayer(sub);
-        if (path && [[NSFileManager defaultManager] fileExistsAtPath:path]) return path;
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (docs) {
+        [dirs addObject:[docs stringByAppendingPathComponent:@"Media"]];
     }
     
-    for (UIView *subview in view.subviews) {
-        path = findVideoPathInView(subview);
-        if (path) return path;
+    NSString *lib = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
+    if (lib) {
+        [dirs addObject:[lib stringByAppendingPathComponent:@"Media"]];
     }
-    return nil;
+    
+    NSString *bestPath = nil;
+    NSDate *newestDate = [NSDate dateWithTimeIntervalSinceNow:-900]; // last 15 minutes
+    
+    for (NSString *dir in dirs) {
+        if (![fm fileExistsAtPath:dir]) continue;
+        NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:dir];
+        NSString *file;
+        while ((file = [enumerator nextObject])) {
+            NSString *ext = [[file pathExtension] lowercaseString];
+            if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                NSString *full = [dir stringByAppendingPathComponent:file];
+                NSDictionary *attrs = [fm attributesOfItemAtPath:full error:nil];
+                NSDate *mod = attrs[NSFileModificationDate];
+                if (mod && [mod compare:newestDate] == NSOrderedDescending) {
+                    newestDate = mod;
+                    bestPath = full;
+                }
+            }
+        }
+    }
+    return bestPath;
+}
+
+static BOOL isVideoContext(UIViewController *ctrl, id msg) {
+    if (msg) {
+        if ([msg respondsToSelector:@selector(isVideo)] && [msg isVideo]) return YES;
+        if ([msg respondsToSelector:@selector(messageType)]) {
+            NSUInteger type = [msg messageType];
+            if (type == 3 || type == 4) return YES;
+        }
+        id mi = safeInvokeGetter(msg, @"mediaItem");
+        if (mi) {
+            if ([mi respondsToSelector:@selector(isVideo)] && [mi isVideo]) return YES;
+            for (NSString *sel in @[@"mediaFilePath", @"plaintextFilePath", @"videoLocalPath"]) {
+                id p = safeInvokeGetter(mi, sel);
+                if ([p isKindOfClass:[NSString class]]) {
+                    NSString *ext = [[p pathExtension] lowercaseString];
+                    if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                        return YES;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (ctrl && ctrl.isViewLoaded) {
+        NSString *cls = NSStringFromClass([ctrl class]);
+        if ([cls containsString:@"Video"]) return YES;
+    }
+    
+    return NO;
 }
 
 static void scanViewsRecursively(UIView *v, void (^imageBlock)(UIImage *), void (^layerBlock)(CGImageRef)) {
@@ -485,21 +684,61 @@ static id findMediaInController(UIViewController *ctrl) {
         return;
     }
     
-    // 0. Check message and media item directly (View-Once & chat messages)
+    id msg = findMessageInController(controller);
+    BOOL isVideo = isVideoContext(controller, msg);
+    
+    // --- 1. SEARCH FOR VIDEO FILE ---
+    NSString *videoPath = nil;
+    
+    // Check message and mediaItem directly
+    if (msg) {
+        videoPath = extractVideoPathFromAnyObject(msg);
+        if (!videoPath) {
+            id mi = safeInvokeGetter(msg, @"mediaItem");
+            if (mi) {
+                videoPath = extractVideoPathFromAnyObject(mi);
+            }
+        }
+    }
+    
+    // Check controller and view hierarchies
+    if (!videoPath) {
+        videoPath = findVideoPathInControllerHierarchy(controller);
+    }
+    
+    // Check recent video in filesystem if in video context
+    if (!videoPath && isVideo) {
+        videoPath = findRecentVideoFile();
+    }
+    
+    // If video found -> SAVE VIDEO
+    if (videoPath) {
+        [self saveVideoToPhotos:videoPath];
+        return;
+    }
+    
+    // If this WAS a video context, but no video file could be extracted, do NOT save a placeholder thumbnail photo!
+    if (isVideo) {
+        NSString *recent = findRecentVideoFile();
+        if (recent) {
+            [self saveVideoToPhotos:recent];
+            return;
+        }
+        [self showToast:@"Video file still loading or not found" success:NO];
+        return;
+    }
+    
+    // --- 2. SEARCH FOR PHOTO (Image context only) ---
     @try {
-        id msg = findMessageInController(controller);
         if (msg) {
             id mi = safeInvokeGetter(msg, @"mediaItem");
             if (mi) {
-                for (NSString *sel in @[@"mediaLocalPath", @"fullPath", @"path", @"filePath"]) {
+                for (NSString *sel in @[@"mediaLocalPath", @"mediaFilePath", @"fullPath", @"path", @"filePath"]) {
                     id pathObj = safeInvokeGetter(mi, sel);
                     NSString *resolved = resolveExistingFilePath(pathObj);
                     if (resolved) {
                         NSString *ext = [[resolved pathExtension] lowercaseString];
-                        if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
-                            [self saveVideoToPhotos:resolved];
-                            return;
-                        } else if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"] || [ext isEqualToString:@"png"]) {
+                        if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"] || [ext isEqualToString:@"png"]) {
                             UIImage *img = [UIImage imageWithContentsOfFile:resolved];
                             if (img) {
                                 [self saveImageToPhotos:img];
@@ -511,18 +750,14 @@ static id findMediaInController(UIViewController *ctrl) {
             }
         }
         
-        // 0b. Check media object in browser controllers
         id media = findMediaInController(controller);
         if (media) {
-            for (NSString *sel in @[@"mediaLocalPath", @"fullPath", @"path", @"filePath"]) {
+            for (NSString *sel in @[@"mediaLocalPath", @"mediaFilePath", @"fullPath", @"path", @"filePath"]) {
                 id pathObj = safeInvokeGetter(media, sel);
                 NSString *resolved = resolveExistingFilePath(pathObj);
                 if (resolved) {
                     NSString *ext = [[resolved pathExtension] lowercaseString];
-                    if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
-                        [self saveVideoToPhotos:resolved];
-                        return;
-                    } else if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"] || [ext isEqualToString:@"png"]) {
+                    if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"] || [ext isEqualToString:@"png"]) {
                         UIImage *img = [UIImage imageWithContentsOfFile:resolved];
                         if (img) {
                             [self saveImageToPhotos:img];
@@ -539,29 +774,14 @@ static id findMediaInController(UIViewController *ctrl) {
         }
     } @catch (NSException *e) {}
     
-    // 1. Try finding video in controller or view hierarchy
-    NSString *ctrlVideo = findVideoPathInController(controller);
-    NSString *resolvedCtrlVideo = resolveExistingFilePath(ctrlVideo);
-    if (resolvedCtrlVideo) {
-        [self saveVideoToPhotos:resolvedCtrlVideo];
-        return;
-    }
-    
-    NSString *videoPath = findVideoPathInView(controller.view);
-    NSString *resolvedVideo = resolveExistingFilePath(videoPath);
-    if (resolvedVideo) {
-        [self saveVideoToPhotos:resolvedVideo];
-        return;
-    }
-    
-    // 2. Try finding image in view hierarchy
+    // Find image in view hierarchy
     UIImage *image = [self findImageInView:controller.view];
     if (image) {
         [self saveImageToPhotos:image];
         return;
     }
     
-    // 3. Fallback: snapshot view
+    // Fallback: snapshot view
     UIImage *snap = [self snapshotView:controller.view];
     if (snap) {
         [self saveImageToPhotos:snap];
