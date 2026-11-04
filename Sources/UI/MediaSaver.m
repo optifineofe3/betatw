@@ -3,6 +3,11 @@
 #import <AVFoundation/AVFoundation.h>
 #import <objc/runtime.h>
 
+@interface NSObject (MediaSaverVideoCheck)
+- (BOOL)isVideo;
+- (NSUInteger)messageType;
+@end
+
 @interface MediaSaverButton : UIButton
 @property (nonatomic, weak) UIViewController *targetController;
 @end
@@ -238,6 +243,28 @@ static id safeInvokeGetter(id obj, NSString *selectorName) {
         return func(obj, sel);
     }
     return nil;
+}
+
+static BOOL safeInvokeBool(id obj, NSString *selectorName) {
+    if (!obj || !selectorName) return NO;
+    SEL sel = NSSelectorFromString(selectorName);
+    if ([obj respondsToSelector:sel]) {
+        IMP imp = [obj methodForSelector:sel];
+        BOOL (*func)(id, SEL) = (BOOL (*)(id, SEL))imp;
+        return func(obj, sel);
+    }
+    return NO;
+}
+
+static NSUInteger safeInvokeInteger(id obj, NSString *selectorName) {
+    if (!obj || !selectorName) return 0;
+    SEL sel = NSSelectorFromString(selectorName);
+    if ([obj respondsToSelector:sel]) {
+        IMP imp = [obj methodForSelector:sel];
+        NSUInteger (*func)(id, SEL) = (NSUInteger (*)(id, SEL))imp;
+        return func(obj, sel);
+    }
+    return 0;
 }
 
 static NSString *extractVideoPathFromAnyObject(id obj) {
@@ -499,14 +526,13 @@ static NSString *findRecentVideoFile(void) {
 
 static BOOL isVideoContext(UIViewController *ctrl, id msg) {
     if (msg) {
-        if ([msg respondsToSelector:@selector(isVideo)] && [msg isVideo]) return YES;
-        if ([msg respondsToSelector:@selector(messageType)]) {
-            NSUInteger type = [msg messageType];
-            if (type == 3 || type == 4) return YES;
-        }
+        if (safeInvokeBool(msg, @"isVideo")) return YES;
+        NSUInteger type = safeInvokeInteger(msg, @"messageType");
+        if (type == 3 || type == 4) return YES;
+        
         id mi = safeInvokeGetter(msg, @"mediaItem");
         if (mi) {
-            if ([mi respondsToSelector:@selector(isVideo)] && [mi isVideo]) return YES;
+            if (safeInvokeBool(mi, @"isVideo")) return YES;
             for (NSString *sel in @[@"mediaFilePath", @"plaintextFilePath", @"videoLocalPath"]) {
                 id p = safeInvokeGetter(mi, sel);
                 if ([p isKindOfClass:[NSString class]]) {

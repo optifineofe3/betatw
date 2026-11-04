@@ -62,6 +62,8 @@
 @interface WAMessage : NSObject
 @property (nonatomic, assign) BOOL isViewOnce;
 @property (nonatomic, assign) int64_t viewOnceCount;
+- (BOOL)isVideo;
+- (NSUInteger)messageType;
 - (BOOL)isViewOnceOpened;
 - (BOOL)isViewOnceExpired;
 - (void)markViewOnceMessageExpiredIfPossible;
