@@ -945,4 +945,255 @@ static id findMediaInController(UIViewController *ctrl) {
     });
 }
 
+#pragma mark - Edit History Overlay & Tap Handling
+
+- (void)handleEditBadgeTap:(UITapGestureRecognizer *)gesture {
+    UIView *badge = gesture.view;
+    if (!badge) return;
+
+    [UIView animateWithDuration:0.1 animations:^{
+        badge.transform = CGAffineTransformMakeScale(0.90, 0.90);
+    } completion:^(BOOL finished) {
+        (void)finished;
+        [UIView animateWithDuration:0.1 animations:^{
+            badge.transform = CGAffineTransformIdentity;
+        }];
+    }];
+
+    id message = objc_getAssociatedObject(badge, "WATweakBadgeMsg");
+    UIView *cell = objc_getAssociatedObject(badge, "WATweakBadgeCell");
+
+    CGRect bFrame = CGRectZero;
+    if (cell && [cell respondsToSelector:@selector(bubbleFrame)]) {
+        @try {
+            NSMethodSignature *sig = [cell methodSignatureForSelector:@selector(bubbleFrame)];
+            if (sig && strcmp([sig methodReturnType], @encode(CGRect)) == 0) {
+                NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                [inv setTarget:cell];
+                [inv setSelector:@selector(bubbleFrame)];
+                [inv invoke];
+                [inv getReturnValue:&bFrame];
+            }
+        } @catch (NSException *e) {}
+    }
+    if (CGRectIsEmpty(bFrame) && cell && [cell respondsToSelector:@selector(backgroundBubbleView)]) {
+        @try {
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            UIView *bg = (UIView *)[cell performSelector:@selector(backgroundBubbleView)];
+            #pragma clang diagnostic pop
+            if (bg) bFrame = [cell convertRect:bg.bounds fromView:bg];
+        } @catch (NSException *e) {}
+    }
+    if (CGRectIsEmpty(bFrame)) {
+        bFrame = badge.superview ? badge.superview.bounds : badge.frame;
+    }
+
+    [MediaSaver showEditHistoryForMessage:message bFrame:bFrame cell:cell ?: badge.superview];
+}
+
++ (void)showEditHistoryForMessage:(id)message bFrame:(CGRect)bFrame cell:(UIView *)cell {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = nil;
+        for (UIWindow *w in [UIApplication sharedApplication].windows) {
+            if (w.isKeyWindow) { window = w; break; }
+        }
+        if (!window && [UIApplication sharedApplication].windows.count > 0) {
+            window = [UIApplication sharedApplication].windows.firstObject;
+        }
+        if (!window) return;
+
+        UIView *oldOverlay = [window viewWithTag:998898];
+        if (oldOverlay) {
+            [oldOverlay removeFromSuperview];
+        }
+
+        NSString *sid = watweak_getStanzaIdFromMessage(message);
+        NSString *origText = watweak_getOriginalTextForStanzaID(sid);
+        NSString *currentText = nil;
+        if ([message respondsToSelector:@selector(text)]) {
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            id t = [message performSelector:@selector(text)];
+            #pragma clang diagnostic pop
+            if ([t isKindOfClass:[NSString class]]) currentText = (NSString *)t;
+        }
+
+        if (!origText || origText.length == 0) {
+            origText = @"(Original message text was not captured during this session)";
+        }
+
+        NSMutableArray *history = [NSMutableArray array];
+
+        // 1. Original message entry
+        NSString *origTimeStr = @"[--:--:--]";
+        if ([message respondsToSelector:@selector(messageDate)]) {
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            id d = [message performSelector:@selector(messageDate)];
+            #pragma clang diagnostic pop
+            if ([d isKindOfClass:[NSDate class]]) {
+                NSDateFormatter *df = [[NSDateFormatter alloc] init];
+                df.dateFormat = @"HH:mm:ss";
+                origTimeStr = [NSString stringWithFormat:@"[%@]", [df stringFromDate:(NSDate *)d]];
+            }
+        }
+        [history addObject:@{
+            @"badge": origTimeStr,
+            @"label": @"Original message",
+            @"text": origText
+        }];
+
+        // 2. Edited message entry
+        if (currentText && currentText.length > 0 && ![currentText isEqualToString:origText]) {
+            NSString *editTimeStr = @"[--:--:--]";
+            if ([message respondsToSelector:@selector(latestEditTimestamp)]) {
+                #pragma clang diagnostic push
+                #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                id ts = [message performSelector:@selector(latestEditTimestamp)];
+                #pragma clang diagnostic pop
+                NSDate *eDate = nil;
+                if ([ts isKindOfClass:[NSDate class]]) eDate = (NSDate *)ts;
+                else if ([ts isKindOfClass:[NSNumber class]] && [ts doubleValue] > 0) {
+                    eDate = [NSDate dateWithTimeIntervalSince1970:[ts doubleValue]];
+                }
+                if (eDate) {
+                    NSDateFormatter *df = [[NSDateFormatter alloc] init];
+                    df.dateFormat = @"HH:mm:ss";
+                    editTimeStr = [NSString stringWithFormat:@"[%@]", [df stringFromDate:eDate]];
+                }
+            }
+            [history addObject:@{
+                @"badge": editTimeStr,
+                @"label": @"Edited message",
+                @"text": currentText
+            }];
+        }
+
+        UIView *backdrop = [[UIView alloc] initWithFrame:window.bounds];
+        backdrop.tag = 998898;
+        backdrop.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.40];
+        backdrop.alpha = 0.0;
+        backdrop.userInteractionEnabled = YES;
+
+        UITapGestureRecognizer *dismissTap = [[UITapGestureRecognizer alloc] initWithTarget:[MediaSaver shared] action:@selector(dismissEditHistoryOverlay)];
+        [backdrop addGestureRecognizer:dismissTap];
+
+        CGFloat screenW = window.bounds.size.width;
+        CGFloat screenH = window.bounds.size.height;
+
+        CGRect bubbleInWindow;
+        if (cell && !CGRectIsEmpty(bFrame)) {
+            bubbleInWindow = [cell convertRect:bFrame toView:window];
+        } else {
+            bubbleInWindow = CGRectMake((screenW - 260.0) / 2.0, (screenH - 160.0) / 2.0, 260.0, 160.0);
+        }
+
+        CGFloat cardW = MAX(bubbleInWindow.size.width, 240.0);
+        if (cardW > screenW - 24.0) cardW = screenW - 24.0;
+        if (cardW < 220.0) cardW = 220.0;
+
+        CGFloat contentH = 28.0;
+        for (NSDictionary *entry in history) {
+            NSString *txt = entry[@"text"] ?: @"";
+            CGSize s = [txt boundingRectWithSize:CGSizeMake(cardW - 28.0, 300) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:13.0]} context:nil].size;
+            contentH += 18.0 + MAX(s.height, 16.0) + 14.0;
+        }
+        CGFloat maxH = screenH * 0.60;
+        if (contentH > maxH) contentH = maxH;
+        if (contentH < 50.0) contentH = 50.0;
+
+        CGFloat cardX = bubbleInWindow.origin.x;
+        if (cardX + cardW > screenW - 12.0) cardX = screenW - cardW - 12.0;
+        if (cardX < 12.0) cardX = 12.0;
+
+        CGFloat cardY = bubbleInWindow.origin.y - contentH - 8.0;
+        if (cardY < 60.0) {
+            cardY = CGRectGetMaxY(bubbleInWindow) + 8.0;
+        }
+        if (cardY + contentH > screenH - 40.0) {
+            cardY = screenH - contentH - 40.0;
+        }
+
+        UIView *card = [[UIView alloc] initWithFrame:CGRectMake(cardX, cardY, cardW, contentH)];
+        card.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.97];
+        card.layer.cornerRadius = 14.0;
+        card.layer.masksToBounds = YES;
+        card.transform = CGAffineTransformMakeScale(0.92, 0.92);
+
+        UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, cardW, contentH)];
+        scrollView.showsVerticalScrollIndicator = YES;
+        scrollView.alwaysBounceVertical = NO;
+
+        CGFloat currY = 14.0;
+        for (NSDictionary *entry in history) {
+            NSString *badgeStr = entry[@"badge"] ?: @"";
+            NSString *labelStr = entry[@"label"] ?: @"";
+            NSString *bodyStr = entry[@"text"] ?: @"";
+
+            UILabel *badgeLbl = [[UILabel alloc] initWithFrame:CGRectMake(14, currY, cardW - 28, 14)];
+            badgeLbl.font = [UIFont monospacedDigitSystemFontOfSize:11.0 weight:UIFontWeightMedium];
+            badgeLbl.textColor = [UIColor colorWithWhite:0.65 alpha:1.0];
+            badgeLbl.text = [NSString stringWithFormat:@"%@  %@", badgeStr, labelStr];
+            [scrollView addSubview:badgeLbl];
+            currY += 18.0;
+
+            CGSize bodySize = [bodyStr boundingRectWithSize:CGSizeMake(cardW - 28.0, 300) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:13.0]} context:nil].size;
+            CGFloat textH = MAX(bodySize.height, 16.0);
+
+            UILabel *bodyLbl = [[UILabel alloc] initWithFrame:CGRectMake(14, currY, cardW - 28, textH)];
+            bodyLbl.font = [UIFont systemFontOfSize:13.0];
+            bodyLbl.textColor = [UIColor whiteColor];
+            bodyLbl.numberOfLines = 0;
+            bodyLbl.text = bodyStr;
+            bodyLbl.userInteractionEnabled = YES;
+
+            UITapGestureRecognizer *rowTap = [[UITapGestureRecognizer alloc] initWithTarget:[MediaSaver shared] action:@selector(handleHistoryCopyTap:)];
+            objc_setAssociatedObject(rowTap, "WATweakCopyText", bodyStr, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            [bodyLbl addGestureRecognizer:rowTap];
+
+            [scrollView addSubview:bodyLbl];
+            currY += textH + 14.0;
+        }
+        scrollView.contentSize = CGSizeMake(cardW, currY);
+        [card addSubview:scrollView];
+
+        [backdrop addSubview:card];
+        [window addSubview:backdrop];
+
+        [UIView animateWithDuration:0.25 delay:0.0 usingSpringWithDamping:0.85 initialSpringVelocity:0.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
+            backdrop.alpha = 1.0;
+            card.transform = CGAffineTransformIdentity;
+        } completion:nil];
+    });
+}
+
+- (void)handleHistoryCopyTap:(UITapGestureRecognizer *)gesture {
+    NSString *txt = objc_getAssociatedObject(gesture, "WATweakCopyText");
+    if (txt && txt.length > 0) {
+        [UIPasteboard generalPasteboard].string = txt;
+        [MediaSaver showToast:@"Text copied!" success:YES];
+    }
+}
+
+- (void)dismissEditHistoryOverlay {
+    UIWindow *window = nil;
+    for (UIWindow *w in [UIApplication sharedApplication].windows) {
+        if (w.isKeyWindow) { window = w; break; }
+    }
+    if (!window && [UIApplication sharedApplication].windows.count > 0) {
+        window = [UIApplication sharedApplication].windows.firstObject;
+    }
+    if (!window) return;
+    UIView *overlay = [window viewWithTag:998898];
+    if (overlay) {
+        [UIView animateWithDuration:0.20 animations:^{
+            overlay.alpha = 0.0;
+        } completion:^(BOOL finished) {
+            (void)finished;
+            [overlay removeFromSuperview];
+        }];
+    }
+}
+
 @end

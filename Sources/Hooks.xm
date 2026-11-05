@@ -13,7 +13,8 @@
 + (id)chatQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
         if ([self respondsToSelector:@selector(hdQuality)]) {
-            return [self hdQuality];
+            id q = [self hdQuality];
+            if (q) return q;
         }
     }
     return %orig;
@@ -22,7 +23,8 @@
 + (id)defaultChatQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
         if ([self respondsToSelector:@selector(hdQuality)]) {
-            return [self hdQuality];
+            id q = [self hdQuality];
+            if (q) return q;
         }
     }
     return %orig;
@@ -235,8 +237,24 @@ static BOOL HasOutgoingRevokedMessages(id arg1) {
 }
 
 static NSMutableSet<NSString *> *sWATweakDeletedStanzaIDs = nil;
+static NSMutableDictionary<NSString *, NSString *> *sWATweakOriginalTexts = nil;
+static NSMutableDictionary<NSString *, NSString *> *sWATweakEditedTexts = nil;
+static NSMutableDictionary<NSString *, NSDate *> *sWATweakEditDates = nil;
 
-static NSString *watweak_getStanzaIdFromMessage(id msg) {
+static void watweak_initEditStorageIfNeeded(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSDictionary *savedOrig = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"WATweakOriginalTexts"];
+        sWATweakOriginalTexts = savedOrig ? [savedOrig mutableCopy] : [NSMutableDictionary dictionary];
+
+        NSDictionary *savedEdited = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"WATweakEditedTexts"];
+        sWATweakEditedTexts = savedEdited ? [savedEdited mutableCopy] : [NSMutableDictionary dictionary];
+
+        sWATweakEditDates = [NSMutableDictionary dictionary];
+    });
+}
+
+extern "C" NSString *watweak_getStanzaIdFromMessage(id msg) {
     if (!msg) return nil;
     NSString *sid = nil;
     @try {
@@ -256,6 +274,56 @@ static NSString *watweak_getStanzaIdFromMessage(id msg) {
         }
     } @catch (NSException *e) {}
     return sid;
+}
+
+extern "C" void watweak_cacheInitialTextForStanzaID(NSString *sid, NSString *text) {
+    if (!sid || !text || text.length == 0) return;
+    watweak_initEditStorageIfNeeded();
+    @synchronized(sWATweakOriginalTexts) {
+        if (!sWATweakOriginalTexts[sid]) {
+            sWATweakOriginalTexts[sid] = [text copy];
+            if (sWATweakOriginalTexts.count > 5000) {
+                NSArray *keys = [sWATweakOriginalTexts allKeys];
+                for (NSUInteger i = 0; i < 1000 && i < keys.count; i++) {
+                    [sWATweakOriginalTexts removeObjectForKey:keys[i]];
+                }
+            }
+            [[NSUserDefaults standardUserDefaults] setObject:sWATweakOriginalTexts forKey:@"WATweakOriginalTexts"];
+        }
+    }
+}
+
+extern "C" void watweak_saveOriginalTextForStanzaID(NSString *sid, NSString *origText, NSDate *editDate) {
+    if (!sid || !origText || origText.length == 0) return;
+    watweak_initEditStorageIfNeeded();
+    @synchronized(sWATweakEditedTexts) {
+        if (!sWATweakEditedTexts[sid]) {
+            sWATweakEditedTexts[sid] = [origText copy];
+            if (editDate) {
+                sWATweakEditDates[sid] = editDate;
+            }
+            if (sWATweakEditedTexts.count > 5000) {
+                NSArray *keys = [sWATweakEditedTexts allKeys];
+                for (NSUInteger i = 0; i < 1000 && i < keys.count; i++) {
+                    [sWATweakEditedTexts removeObjectForKey:keys[i]];
+                }
+            }
+            [[NSUserDefaults standardUserDefaults] setObject:sWATweakEditedTexts forKey:@"WATweakEditedTexts"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+        }
+    }
+}
+
+extern "C" NSString *watweak_getOriginalTextForStanzaID(NSString *sid) {
+    if (!sid) return nil;
+    watweak_initEditStorageIfNeeded();
+    @synchronized(sWATweakEditedTexts) {
+        NSString *t = sWATweakEditedTexts[sid];
+        if (t) return t;
+    }
+    @synchronized(sWATweakOriginalTexts) {
+        return sWATweakOriginalTexts[sid];
+    }
 }
 
 static void watweak_markMessageRevoked(id msg) {
@@ -355,7 +423,35 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 %end
 
+%hook WAChatStorageMessageEditingWorker
+
+- (id)attachMessageEdit:(id)edit stanzaID:(id)stanzaID creationDate:(id)date hasExistingChatSessionTransaction:(BOOL)trans targetMessage:(id)targetMessage {
+    @try {
+        if (targetMessage) {
+            NSString *origText = [targetMessage respondsToSelector:@selector(text)] ? [targetMessage text] : nil;
+            NSString *sid = watweak_getStanzaIdFromMessage(targetMessage) ?: (NSString *)stanzaID;
+            if (sid && origText && origText.length > 0) {
+                watweak_saveOriginalTextForStanzaID(sid, origText, date);
+            }
+        }
+    } @catch (NSException *e) {}
+    return %orig;
+}
+
+%end
+
 %hook WAMessage
+
+- (void)applyOutgoingEditUsingChatStorage:(id)arg1 {
+    @try {
+        NSString *origText = [self respondsToSelector:@selector(text)] ? [self text] : nil;
+        NSString *sid = watweak_getStanzaIdFromMessage(self);
+        if (sid && origText && origText.length > 0) {
+            watweak_saveOriginalTextForStanzaID(sid, origText, [NSDate date]);
+        }
+    } @catch (NSException *e) {}
+    %orig;
+}
 
 - (BOOL)isRevoked {
     if (WATweakGetBool(kAntiRevoke, YES)) {
@@ -558,6 +654,25 @@ static BOOL watweak_isMessageEdited(id msg) {
     BOOL isDel = watweak_isMessageRevoked(message);
     BOOL isEdit = watweak_isMessageEdited(message);
 
+    NSString *sid = watweak_getStanzaIdFromMessage(message);
+    NSString *currentText = [message respondsToSelector:@selector(text)] ? [message text] : nil;
+    if (sid && currentText && currentText.length > 0) {
+        if (!isEdit) {
+            watweak_cacheInitialTextForStanzaID(sid, currentText);
+        } else {
+            NSString *savedOrig = watweak_getOriginalTextForStanzaID(sid);
+            if (!savedOrig) {
+                watweak_initEditStorageIfNeeded();
+                @synchronized(sWATweakOriginalTexts) {
+                    NSString *cached = sWATweakOriginalTexts[sid];
+                    if (cached && ![cached isEqualToString:currentText]) {
+                        watweak_saveOriginalTextForStanzaID(sid, cached, nil);
+                    }
+                }
+            }
+        }
+    }
+
     UILabel *delBadge = (UILabel *)[self.contentView viewWithTag:998855];
     UILabel *editBadge = (UILabel *)[self.contentView viewWithTag:998856];
 
@@ -652,12 +767,27 @@ static BOOL watweak_isMessageEdited(id msg) {
             editBadge.backgroundColor = [UIColor colorWithRed:0.18 green:0.52 blue:0.92 alpha:0.90];
             editBadge.layer.masksToBounds = YES;
             editBadge.layer.zPosition = 1000;
-            editBadge.userInteractionEnabled = NO;
             [self.contentView addSubview:editBadge];
         }
         editBadge.text = editText;
         editBadge.hidden = NO;
         editBadge.layer.cornerRadius = badgeHeight / 2.0;
+        editBadge.userInteractionEnabled = YES;
+
+        BOOL alreadyAttached = NO;
+        for (UIGestureRecognizer *gr in editBadge.gestureRecognizers) {
+            if ([objc_getAssociatedObject(gr, "isWATweakEditGesture") boolValue]) {
+                alreadyAttached = YES;
+                break;
+            }
+        }
+        if (!alreadyAttached) {
+            UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:[MediaSaver shared] action:@selector(handleEditBadgeTap:)];
+            objc_setAssociatedObject(tap, "isWATweakEditGesture", @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            [editBadge addGestureRecognizer:tap];
+        }
+        objc_setAssociatedObject(editBadge, "WATweakBadgeMsg", message, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(editBadge, "WATweakBadgeCell", self, OBJC_ASSOCIATION_ASSIGN);
     } else {
         if (editBadge) editBadge.hidden = YES;
     }
@@ -1181,12 +1311,19 @@ static BOOL isMetaTrashString(NSString *str) {
         [s containsString:@"центр аккаунтов"] || [s containsString:@"центр учетных записей"]) return YES;
     if ([s containsString:@"also from meta"] || [s containsString:@"from meta"] || [s containsString:@"от meta"]) return YES;
     if ([s containsString:@"meta verified"] || [s containsString:@"meta ai"] || [s containsString:@"foa"]) return YES;
+    if ([s containsString:@"open facebook"] || [s containsString:@"open instagram"] || [s containsString:@"open threads"]) return YES;
     return NO;
 }
 
 static BOOL isMetaTrashRow(id row) {
     if (!row) return NO;
     @try {
+        if ([row respondsToSelector:@selector(title)]) {
+            id t = [row performSelector:@selector(title)];
+            if ([t isKindOfClass:[NSString class]]) {
+                if (isMetaTrashString((NSString *)t)) return YES;
+            }
+        }
         if ([row respondsToSelector:@selector(text)]) {
             id t = [row performSelector:@selector(text)];
             if ([t isKindOfClass:[NSString class]]) {
@@ -1203,8 +1340,15 @@ static BOOL isMetaTrashRow(id row) {
                 if (isMetaTrashString(ds)) return YES;
             }
         }
+        if ([row respondsToSelector:@selector(cell)]) {
+            id cell = [row performSelector:@selector(cell)];
+            if ([cell isKindOfClass:[UITableViewCell class]]) {
+                NSString *cellText = [(UITableViewCell *)cell textLabel].text ?: findTextRecursively([(UITableViewCell *)cell contentView]);
+                if (isMetaTrashString(cellText)) return YES;
+            }
+        }
         NSString *rowCls = NSStringFromClass([row class]);
-        if ([rowCls containsString:@"FOA"] || [rowCls containsString:@"Bookmark"] || [rowCls containsString:@"AccountsCenter"]) return YES;
+        if ([rowCls containsString:@"FOA"] || [rowCls containsString:@"Bookmark"] || [rowCls containsString:@"AccountsCenter"] || [rowCls containsString:@"Meta"]) return YES;
     } @catch (NSException *e) {}
     return NO;
 }
@@ -1213,7 +1357,7 @@ static BOOL isMetaTrashSection(id section) {
     if (!section) return NO;
     @try {
         NSString *secCls = NSStringFromClass([section class]);
-        if ([secCls containsString:@"FOA"] || [secCls containsString:@"AccountsCenter"]) return YES;
+        if ([secCls containsString:@"FOA"] || [secCls containsString:@"AccountsCenter"] || [secCls containsString:@"Meta"]) return YES;
         if ([section respondsToSelector:@selector(headerTitle)]) {
             id h = [section performSelector:@selector(headerTitle)];
             if ([h isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)h)) return YES;
@@ -1225,6 +1369,19 @@ static BOOL isMetaTrashSection(id section) {
         if ([section respondsToSelector:@selector(footerText)]) {
             id f = [section performSelector:@selector(footerText)];
             if ([f isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)f)) return YES;
+        }
+        if ([section respondsToSelector:@selector(rows)]) {
+            NSArray *rows = [section performSelector:@selector(rows)];
+            if ([rows isKindOfClass:[NSArray class]] && rows.count > 0) {
+                BOOL allTrash = YES;
+                for (id r in rows) {
+                    if (!isMetaTrashRow(r)) {
+                        allTrash = NO;
+                        break;
+                    }
+                }
+                if (allTrash) return YES;
+            }
         }
     } @catch (NSException *e) {}
     return NO;
@@ -1300,6 +1457,48 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
 }
 
 %hook WASettingsViewController
+
+- (void)loadSections {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(sections)]) {
+                NSArray *secs = [self sections];
+                if ([secs isKindOfClass:[NSArray class]] && secs.count > 0) {
+                    NSMutableArray *filtered = [NSMutableArray array];
+                    for (id sec in secs) {
+                        if (!isMetaTrashSection(sec)) {
+                            if ([sec respondsToSelector:@selector(rows)]) {
+                                NSArray *rows = [sec rows];
+                                if ([rows isKindOfClass:[NSArray class]]) {
+                                    NSMutableArray *filteredRows = [NSMutableArray array];
+                                    for (id r in rows) {
+                                        if (!isMetaTrashRow(r)) {
+                                            [filteredRows addObject:r];
+                                        }
+                                    }
+                                    if (filteredRows.count > 0) {
+                                        if ([sec respondsToSelector:@selector(setRows:)]) {
+                                            [sec setRows:filteredRows];
+                                        }
+                                        [filtered addObject:sec];
+                                    }
+                                } else {
+                                    [filtered addObject:sec];
+                                }
+                            } else {
+                                [filtered addObject:sec];
+                            }
+                        }
+                    }
+                    if ([self respondsToSelector:@selector(setSections:)]) {
+                        [self setSections:filtered];
+                    }
+                }
+            }
+        } @catch (NSException *e) {}
+    }
+}
 
 - (void)addSubscriptionsRowIfEligibleToSection:(id)arg1 {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
@@ -1395,6 +1594,10 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
 - (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
         @try {
+            NSInteger totalSecs = [self numberOfSectionsInTableView:tableView];
+            if (section >= totalSecs - 1) {
+                return 0.001f;
+            }
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) return 0.001f;
             id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:section]];
@@ -1423,6 +1626,10 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
 - (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
         @try {
+            NSInteger totalSecs = [self numberOfSectionsInTableView:tableView];
+            if (section >= totalSecs - 1) {
+                return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
+            }
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) {
                 return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
@@ -1540,7 +1747,21 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             if ([self respondsToSelector:@selector(tableView)]) {
                 UITableView *tv = [self tableView];
-                if (tv && tv.tableFooterView && tv.tableFooterView.frame.size.height > 1.0f) {
+                if (tv) {
+                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, CGFLOAT_MIN)];
+                }
+            }
+        } @catch (NSException *e) {}
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            if ([self respondsToSelector:@selector(tableView)]) {
+                UITableView *tv = [self tableView];
+                if (tv && tv.tableFooterView && tv.tableFooterView.frame.size.height > CGFLOAT_MIN) {
                     tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, CGFLOAT_MIN)];
                 }
             }

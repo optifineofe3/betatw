@@ -86,6 +86,12 @@
 - (id)latestEditTimestamp;
 - (id)latestEditReceivedTimestamp;
 - (id)messageID;
+- (id)messageDate;
+- (void)applyOutgoingEditUsingChatStorage:(id)arg1;
+@end
+
+@interface WAChatStorageMessageEditingWorker : NSObject
+- (id)attachMessageEdit:(id)edit stanzaID:(id)stanzaID creationDate:(id)date hasExistingChatSessionTransaction:(BOOL)trans targetMessage:(id)targetMessage;
 @end
 
 @interface WAChatCellData : NSObject
