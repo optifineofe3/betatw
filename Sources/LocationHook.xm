@@ -166,6 +166,8 @@ static CLLocation *getFakeLocation(void) {
 
 %end
 
+%group DeviceLocationGroup
+
 %hook DeviceLocationManager
 
 - (void)locationManager:(id)manager didUpdateLocations:(id)locations {
@@ -181,14 +183,16 @@ static CLLocation *getFakeLocation(void) {
 
 %end
 
+%end
+
 %ctor {
     @autoreleasepool {
+        %init;
         Class devLocCls = objc_getClass("DeviceLocationManager.DeviceLocationManager");
         if (!devLocCls) devLocCls = objc_getClass("DeviceLocationManager");
         if (devLocCls) {
-            %init(DeviceLocationManager = devLocCls);
+            %init(DeviceLocationGroup, DeviceLocationManager = devLocCls);
         }
-        %init;
         [WATweakFakeLocationManager shared];
     }
 }
