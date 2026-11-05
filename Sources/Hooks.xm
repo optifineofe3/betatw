@@ -11,22 +11,18 @@
 %hook WAMultiSendMediaItemQuality
 
 + (id)chatQuality {
-    if (WATweakGetBool(kUncompressedPhotos, YES)) {
-        if ([self respondsToSelector:@selector(fullQuality)]) {
-            return [self fullQuality];
-        } else if ([self respondsToSelector:@selector(documentImageQuality)]) {
-            return [self documentImageQuality];
+    if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
+        if ([self respondsToSelector:@selector(dualUploadHdQuality)]) {
+            return [self dualUploadHdQuality];
         }
     }
     return %orig;
 }
 
 + (id)defaultChatQuality {
-    if (WATweakGetBool(kUncompressedPhotos, YES)) {
-        if ([self respondsToSelector:@selector(fullQuality)]) {
-            return [self fullQuality];
-        } else if ([self respondsToSelector:@selector(documentImageQuality)]) {
-            return [self documentImageQuality];
+    if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
+        if ([self respondsToSelector:@selector(dualUploadHdQuality)]) {
+            return [self dualUploadHdQuality];
         }
     }
     return %orig;
@@ -34,7 +30,7 @@
 
 - (NSUInteger)imageMaximumEdge {
     if (WATweakGetBool(kUncompressedPhotos, YES)) {
-        return 99999;
+        return 4096;
     }
     return %orig;
 }
@@ -42,27 +38,6 @@
 - (CGFloat)imageQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES)) {
         return 1.0;
-    }
-    return %orig;
-}
-
-- (NSUInteger)videoMaximumWidth {
-    if (WATweakGetBool(kUncompressedVideos, YES)) {
-        return 3840; // 4K support
-    }
-    return %orig;
-}
-
-- (NSUInteger)videoMaximumHeight {
-    if (WATweakGetBool(kUncompressedVideos, YES)) {
-        return 3840;
-    }
-    return %orig;
-}
-
-- (NSUInteger)videoMaximumBitrate {
-    if (WATweakGetBool(kUncompressedVideos, YES)) {
-        return 50000000; // 50 Mbps max bitrate
     }
     return %orig;
 }
@@ -259,6 +234,94 @@ static BOOL HasOutgoingRevokedMessages(id arg1) {
     return YES;
 }
 
+static NSMutableSet<NSString *> *sWATweakDeletedStanzaIDs = nil;
+
+static NSString *watweak_getStanzaIdFromMessage(id msg) {
+    if (!msg) return nil;
+    NSString *sid = nil;
+    @try {
+        if ([msg respondsToSelector:@selector(stanzaID)]) {
+            sid = [msg stanzaID];
+        }
+        if (!sid && [msg respondsToSelector:@selector(stanzaId)]) {
+            sid = [msg stanzaId];
+        }
+        if (!sid && [msg respondsToSelector:@selector(messageID)]) {
+            id mid = [msg messageID];
+            if ([mid respondsToSelector:@selector(stanzaID)]) {
+                sid = [mid stanzaID];
+            } else if ([mid isKindOfClass:[NSString class]]) {
+                sid = (NSString *)mid;
+            }
+        }
+    } @catch (NSException *e) {}
+    return sid;
+}
+
+static void watweak_markMessageRevoked(id msg) {
+    if (!msg) return;
+    objc_setAssociatedObject(msg, "WATweakIsDel", @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    
+    NSString *sid = watweak_getStanzaIdFromMessage(msg);
+    if (sid && sid.length > 0) {
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:@"WATweakDeletedStanzaIDs"];
+            sWATweakDeletedStanzaIDs = saved ? [NSMutableSet setWithArray:saved] : [NSMutableSet set];
+        });
+        if (![sWATweakDeletedStanzaIDs containsObject:sid]) {
+            [sWATweakDeletedStanzaIDs addObject:sid];
+            if (sWATweakDeletedStanzaIDs.count > 10000) {
+                NSArray *all = [sWATweakDeletedStanzaIDs allObjects];
+                sWATweakDeletedStanzaIDs = [NSMutableSet setWithArray:[all subarrayWithRange:NSMakeRange(all.count - 8000, 8000)]];
+            }
+            [[NSUserDefaults standardUserDefaults] setObject:[sWATweakDeletedStanzaIDs allObjects] forKey:@"WATweakDeletedStanzaIDs"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+        }
+    }
+}
+
+static BOOL watweak_isMessageRevoked(id msg) {
+    if (!msg) return NO;
+    if ([objc_getAssociatedObject(msg, "WATweakIsDel") boolValue]) {
+        return YES;
+    }
+    NSString *sid = watweak_getStanzaIdFromMessage(msg);
+    if (sid && sid.length > 0) {
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:@"WATweakDeletedStanzaIDs"];
+            sWATweakDeletedStanzaIDs = saved ? [NSMutableSet setWithArray:saved] : [NSMutableSet set];
+        });
+        if ([sWATweakDeletedStanzaIDs containsObject:sid]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static BOOL watweak_isMessageEdited(id msg) {
+    if (!msg) return NO;
+    @try {
+        if ([msg respondsToSelector:@selector(isMessageEdited)] && [msg isMessageEdited]) {
+            return YES;
+        }
+        if ([msg respondsToSelector:@selector(isEdited)] && [msg isEdited]) {
+            return YES;
+        }
+        if ([msg respondsToSelector:@selector(latestEditTimestamp)]) {
+            id ts = [msg latestEditTimestamp];
+            if ([ts isKindOfClass:[NSNumber class]] && [ts doubleValue] > 0) return YES;
+            if ([ts isKindOfClass:[NSDate class]]) return YES;
+        }
+        if ([msg respondsToSelector:@selector(latestEditReceivedTimestamp)]) {
+            id rts = [msg latestEditReceivedTimestamp];
+            if (rts != nil && ![rts isEqual:[NSNull null]]) return YES;
+        }
+    } @catch (NSException *e) {}
+    return NO;
+}
+
 %hook WAChatStorage
 
 - (void)revokeIncomingMessage:(id)message triggeredByMessageWithID:(id)messageID onDate:(id)date outOfOrder:(BOOL)outOfOrder revokedByAdminUserJID:(id)adminJID deferAction:(id)deferAction {
@@ -272,18 +335,7 @@ static BOOL HasOutgoingRevokedMessages(id arg1) {
             return;
         }
         WATweakLog(@"Suppressed revokeIncomingMessage for message: %@", message);
-        @try {
-            if ([message respondsToSelector:@selector(text)]) {
-                NSString *txt = [message text];
-                if (txt && txt.length > 0 && ![txt hasPrefix:@"[DEL] "]) {
-                    if ([message respondsToSelector:@selector(setText:)]) {
-                        [message setText:[NSString stringWithFormat:@"[DEL] %@", txt]];
-                    }
-                }
-            }
-        } @catch (NSException *e) {
-            WATweakLog(@"Exception in revokeIncomingMessage: %@", e);
-        }
+        watweak_markMessageRevoked(message);
         return;
     }
     %orig;
@@ -470,6 +522,204 @@ static BOOL HasOutgoingRevokedMessages(id arg1) {
         return;
     }
     %orig;
+}
+
+%end
+
+%hook WAMessageBubbleTableViewCell
+
+- (void)layoutSubviews {
+    %orig;
+    
+    if (!WATweakGetBool(kAntiRevoke, YES)) {
+        UIView *del = [self.contentView viewWithTag:998855];
+        if (del) del.hidden = YES;
+        UIView *edt = [self.contentView viewWithTag:998856];
+        if (edt) edt.hidden = YES;
+        return;
+    }
+
+    id cellData = nil;
+    if ([self respondsToSelector:@selector(cellData)]) {
+        cellData = [self cellData];
+    } else {
+        @try { cellData = [self valueForKey:@"cellData"]; } @catch (NSException *e) {}
+    }
+    if (!cellData) return;
+
+    id message = nil;
+    if ([cellData respondsToSelector:@selector(message)]) {
+        message = [cellData message];
+    } else {
+        @try { message = [cellData valueForKey:@"message"]; } @catch (NSException *e) {}
+    }
+    if (!message) return;
+
+    BOOL isDel = watweak_isMessageRevoked(message);
+    BOOL isEdit = watweak_isMessageEdited(message);
+
+    UILabel *delBadge = (UILabel *)[self.contentView viewWithTag:998855];
+    UILabel *editBadge = (UILabel *)[self.contentView viewWithTag:998856];
+
+    if (!isDel && !isEdit) {
+        if (delBadge) delBadge.hidden = YES;
+        if (editBadge) editBadge.hidden = YES;
+        return;
+    }
+
+    CGRect bFrame = CGRectZero;
+    if ([self respondsToSelector:@selector(bubbleFrame)]) {
+        NSMethodSignature *sig = [self methodSignatureForSelector:@selector(bubbleFrame)];
+        if (sig && strcmp([sig methodReturnType], @encode(CGRect)) == 0) {
+            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+            [inv setTarget:self];
+            [inv setSelector:@selector(bubbleFrame)];
+            [inv invoke];
+            [inv getReturnValue:&bFrame];
+        }
+    }
+    if (CGRectIsEmpty(bFrame) && [self respondsToSelector:@selector(backgroundBubbleView)]) {
+        UIView *bgView = [self backgroundBubbleView];
+        if (bgView) {
+            bFrame = [self.contentView convertRect:bgView.bounds fromView:bgView];
+        }
+    }
+    if (CGRectIsEmpty(bFrame)) {
+        for (UIView *sub in self.contentView.subviews) {
+            if (sub.tag != 998855 && sub.tag != 998856 && sub.frame.size.width > 60.0 && sub.frame.size.width < self.contentView.bounds.size.width - 20.0) {
+                bFrame = sub.frame;
+                break;
+            }
+        }
+    }
+    if (CGRectIsEmpty(bFrame) || bFrame.size.width <= 20.0) {
+        bFrame = self.contentView.bounds;
+    }
+
+    CGFloat rowWidth = self.contentView.bounds.size.width;
+    if (rowWidth < 50.0) rowWidth = [UIScreen mainScreen].bounds.size.width;
+
+    BOOL isOutgoing = WAMessageIsFromMe(message);
+    if (!isOutgoing && bFrame.origin.x > (rowWidth / 2.0)) {
+        isOutgoing = YES;
+    }
+
+    CGFloat badgeHeight = 13.5;
+    CGFloat minX = 6.0;
+    CGFloat maxX = rowWidth - 6.0;
+
+    CGFloat availableSpace = isOutgoing ? bFrame.origin.x : (rowWidth - CGRectGetMaxX(bFrame));
+    BOOL hasPlentyOfSpace = (availableSpace >= 75.0);
+    BOOL isMultiLine = (bFrame.size.height > 55.0);
+    BOOL shouldStack = (isDel && isEdit) && (!hasPlentyOfSpace && isMultiLine);
+
+    NSString *editText = (shouldStack || (!hasPlentyOfSpace && isMultiLine)) ? @"EDT" : @"EDITED";
+
+    UIFont *badgeFont = [UIFont systemFontOfSize:8.5 weight:UIFontWeightBold];
+    CGSize delSize = [@"DEL" sizeWithAttributes:@{NSFontAttributeName: badgeFont}];
+    CGFloat delW = MAX(delSize.width + 8.0, 26.0);
+
+    CGSize editSize = [editText sizeWithAttributes:@{NSFontAttributeName: badgeFont}];
+    CGFloat editW = MAX(editSize.width + 8.0, 26.0);
+
+    if (isDel) {
+        if (!delBadge) {
+            delBadge = [[UILabel alloc] init];
+            delBadge.tag = 998855;
+            delBadge.textAlignment = NSTextAlignmentCenter;
+            delBadge.font = badgeFont;
+            delBadge.textColor = [UIColor whiteColor];
+            delBadge.backgroundColor = [UIColor colorWithRed:0.85 green:0.20 blue:0.20 alpha:0.90];
+            delBadge.layer.masksToBounds = YES;
+            delBadge.layer.zPosition = 1000;
+            delBadge.userInteractionEnabled = NO;
+            [self.contentView addSubview:delBadge];
+        }
+        delBadge.text = @"DEL";
+        delBadge.hidden = NO;
+        delBadge.layer.cornerRadius = badgeHeight / 2.0;
+    } else {
+        if (delBadge) delBadge.hidden = YES;
+    }
+
+    if (isEdit) {
+        if (!editBadge) {
+            editBadge = [[UILabel alloc] init];
+            editBadge.tag = 998856;
+            editBadge.textAlignment = NSTextAlignmentCenter;
+            editBadge.font = badgeFont;
+            editBadge.textColor = [UIColor whiteColor];
+            editBadge.backgroundColor = [UIColor colorWithRed:0.18 green:0.52 blue:0.92 alpha:0.90];
+            editBadge.layer.masksToBounds = YES;
+            editBadge.layer.zPosition = 1000;
+            editBadge.userInteractionEnabled = NO;
+            [self.contentView addSubview:editBadge];
+        }
+        editBadge.text = editText;
+        editBadge.hidden = NO;
+        editBadge.layer.cornerRadius = badgeHeight / 2.0;
+    } else {
+        if (editBadge) editBadge.hidden = YES;
+    }
+
+    CGFloat centerY = CGRectGetMidY(bFrame);
+
+    if (shouldStack) {
+        CGFloat stackGap = 2.0;
+        CGFloat totalH = badgeHeight * 2.0 + stackGap;
+        CGFloat startY = centerY - totalH / 2.0;
+
+        if (isOutgoing) {
+            CGFloat x = minX;
+            delBadge.frame = CGRectMake(x, startY, delW, badgeHeight);
+            editBadge.frame = CGRectMake(x, startY + badgeHeight + stackGap, editW, badgeHeight);
+        } else {
+            CGFloat xDel = maxX - delW;
+            if (xDel < minX) xDel = minX;
+            delBadge.frame = CGRectMake(xDel, startY, delW, badgeHeight);
+
+            CGFloat xEdit = maxX - editW;
+            if (xEdit < minX) xEdit = minX;
+            editBadge.frame = CGRectMake(xEdit, startY + badgeHeight + stackGap, editW, badgeHeight);
+        }
+    } else {
+        CGFloat y = centerY - badgeHeight / 2.0;
+        if (isDel && isEdit) {
+            if (isOutgoing) {
+                CGFloat delX = minX;
+                CGFloat editX = delX + delW + 3.0;
+                delBadge.frame = CGRectMake(delX, y, delW, badgeHeight);
+                editBadge.frame = CGRectMake(editX, y, editW, badgeHeight);
+            } else {
+                CGFloat editX = maxX - editW;
+                if (editX < minX) editX = minX;
+                editBadge.frame = CGRectMake(editX, y, editW, badgeHeight);
+
+                CGFloat delX = editX - delW - 3.0;
+                if (delX < minX) delX = minX;
+                delBadge.frame = CGRectMake(delX, y, delW, badgeHeight);
+            }
+        } else if (isDel) {
+            if (isOutgoing) {
+                delBadge.frame = CGRectMake(minX, y, delW, badgeHeight);
+            } else {
+                CGFloat x = maxX - delW;
+                if (x < minX) x = minX;
+                delBadge.frame = CGRectMake(x, y, delW, badgeHeight);
+            }
+        } else if (isEdit) {
+            if (isOutgoing) {
+                editBadge.frame = CGRectMake(minX, y, editW, badgeHeight);
+            } else {
+                CGFloat x = maxX - editW;
+                if (x < minX) x = minX;
+                editBadge.frame = CGRectMake(x, y, editW, badgeHeight);
+            }
+        }
+    }
+
+    if (delBadge && !delBadge.hidden) [self.contentView bringSubviewToFront:delBadge];
+    if (editBadge && !editBadge.hidden) [self.contentView bringSubviewToFront:editBadge];
 }
 
 %end
@@ -924,10 +1174,13 @@ static NSString *findTextRecursively(UIView *view) {
 static BOOL isMetaTrashString(NSString *str) {
     if (!str || str.length == 0) return NO;
     NSString *s = [str lowercaseString];
+    s = [s stringByReplacingOccurrencesOfString:@"\u200E" withString:@""];
+    s = [s stringByReplacingOccurrencesOfString:@"\u200F" withString:@""];
     if ([s containsString:@"subscription"] || [s containsString:@"подписк"]) return YES;
     if ([s containsString:@"account center"] || [s containsString:@"accounts center"] ||
         [s containsString:@"центр аккаунтов"] || [s containsString:@"центр учетных записей"]) return YES;
     if ([s containsString:@"also from meta"] || [s containsString:@"from meta"] || [s containsString:@"от meta"]) return YES;
+    if ([s containsString:@"facebook"] || [s containsString:@"threads"] || [s containsString:@"instagram"]) return YES;
     return NO;
 }
 
@@ -1046,6 +1299,62 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         }
     } @catch (NSException *e) {}
 }
+
+%hook WAStaticTableViewController
+
+- (void)addSection:(id)section {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        if (isMetaTrashSection(section)) {
+            return;
+        }
+    }
+    %orig;
+}
+
+- (void)insertSection:(id)section atIndex:(NSUInteger)index {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        if (isMetaTrashSection(section)) {
+            return;
+        }
+    }
+    %orig;
+}
+
+- (void)setSections:(NSArray *)sections {
+    if (WATweakGetBool(kHideMetaTrash, YES) && [sections isKindOfClass:[NSArray class]]) {
+        NSMutableArray *filtered = [NSMutableArray array];
+        for (id sec in sections) {
+            if (!isMetaTrashSection(sec)) {
+                [filtered addObject:sec];
+            }
+        }
+        %orig(filtered);
+        return;
+    }
+    %orig;
+}
+
+- (void)loadSections {
+    %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            NSArray *secs = [self sections];
+            if (secs && [secs isKindOfClass:[NSArray class]]) {
+                NSMutableArray *filtered = [NSMutableArray array];
+                for (id sec in secs) {
+                    if (!isMetaTrashSection(sec)) {
+                        [filtered addObject:sec];
+                    }
+                }
+                if (filtered.count != secs.count) {
+                    [self setSections:filtered];
+                }
+            }
+        } @catch (NSException *e) {}
+    }
+}
+
+%end
 
 %hook WASettingsViewController
 
@@ -1245,8 +1554,11 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             if ([self respondsToSelector:@selector(tableView)]) {
                 UITableView *tv = [self tableView];
-                if (tv.tableFooterView && tv.tableFooterView.frame.size.height > 0.1) {
-                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, 0.001f)];
+                if (tv) {
+                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, CGFLOAT_MIN)];
+                    UIEdgeInsets insets = tv.contentInset;
+                    insets.bottom = 0;
+                    tv.contentInset = insets;
                 }
             }
         } @catch (NSException *e) {}
@@ -1259,8 +1571,11 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             if ([self respondsToSelector:@selector(tableView)]) {
                 UITableView *tv = [self tableView];
-                if (tv.tableFooterView && tv.tableFooterView.frame.size.height > 0.1) {
-                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, 0.001f)];
+                if (tv) {
+                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, CGFLOAT_MIN)];
+                    UIEdgeInsets insets = tv.contentInset;
+                    insets.bottom = 0;
+                    tv.contentInset = insets;
                 }
             }
         } @catch (NSException *e) {}

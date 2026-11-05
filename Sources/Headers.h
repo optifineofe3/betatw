@@ -72,12 +72,28 @@
 - (BOOL)isRevokedByAdmin;
 - (BOOL)isMessageRevoked;
 - (NSString *)stanzaId;
+- (NSString *)stanzaID;
 - (id)chatJID;
 - (NSString *)text;
 - (void)setText:(NSString *)text;
 - (id)mediaItem;
 - (BOOL)isFromMe;
 - (BOOL)fromMe;
+- (BOOL)isMessageEdited;
+- (BOOL)isEdited;
+- (id)latestEditTimestamp;
+- (id)latestEditReceivedTimestamp;
+- (id)messageID;
+@end
+
+@interface WAChatCellData : NSObject
+@property (nonatomic, readonly) WAMessage *message;
+@end
+
+@interface WAMessageBubbleTableViewCell : UITableViewCell
+@property (nonatomic, readonly) id cellData;
+@property (nonatomic, readonly) UIView *backgroundBubbleView;
+- (CGRect)bubbleFrame;
 @end
 
 @interface WAChatStorage : NSObject
@@ -169,6 +185,9 @@
 - (id)rowAtIndexPath:(NSIndexPath *)indexPath;
 - (id)sectionAtIndex:(NSInteger)index;
 - (void)setSections:(NSArray *)sections;
+- (void)addSection:(id)section;
+- (void)insertSection:(id)section atIndex:(NSUInteger)index;
+- (void)loadSections;
 @end
 
 @interface WASettingsViewController : WAStaticTableViewController

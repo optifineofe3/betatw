@@ -14,6 +14,12 @@
 #define kHideMetaTrash                 @"watweak_hide_meta_trash"
 #define kDisableTelemetry              @"watweak_disable_telemetry"
 
+#define FAKE_LOCATION_ENABLED_KEY      @"watweak_fake_location_enabled"
+#define FAKE_LATITUDE_KEY              @"watweak_fake_latitude"
+#define FAKE_LONGITUDE_KEY             @"watweak_fake_longitude"
+#define FILE_PICKER_FIX_KEY            @"watweak_fix_file_picker"
+#define FILE_PICKER_PATH               @"watweak_file_picker_cache"
+
 static inline BOOL WATweakGetBool(NSString *key, BOOL defaultVal) {
     id val = [[NSUserDefaults standardUserDefaults] objectForKey:key];
     if (val == nil) {

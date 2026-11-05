@@ -7,7 +7,7 @@ TWEAK_NAME = Tweak
 
 $(TWEAK_NAME)_FILES = $(shell find Sources \( -name '*.m' -o -name '*.mm' -o -name '*.xm' -o -name '*.c' \))
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc -ISources -ISources/UI -ISources/fishhook -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-function -Wno-arc-performSelector-leaks
-$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreGraphics Photos AVFoundation UserNotifications Contacts Security Intents DeviceCheck CloudKit
+$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreGraphics Photos AVFoundation UserNotifications Contacts Security Intents DeviceCheck CloudKit CoreLocation MapKit
 $(TWEAK_NAME)_LOGOS_DEFAULT_GENERATOR = internal
 
 Sources/fishhook/fishhook.c_CFLAGS = -fno-objc-arc
