@@ -31,6 +31,7 @@ static CLLocation *getFakeLocation(void) {
 @property (nonatomic, strong) NSHashTable<CLLocationManager *> *locationManagers;
 @property (nonatomic, strong) NSTimer *lieToDelegateTimer;
 + (instancetype)shared;
+- (void)addLocationManager:(CLLocationManager *)mgr;
 - (void)lieToDelegates;
 @end
 
@@ -64,6 +65,13 @@ static CLLocation *getFakeLocation(void) {
     return self;
 }
 
+- (void)addLocationManager:(CLLocationManager *)mgr {
+    if (!mgr) return;
+    @synchronized(self) {
+        [self.locationManagers addObject:mgr];
+    }
+}
+
 - (void)setupTimer {
     if (self.lieToDelegateTimer) return;
     __weak typeof(self) weakSelf = self;
@@ -80,13 +88,18 @@ static CLLocation *getFakeLocation(void) {
     if (!fake) return;
 
     NSArray *fakeArr = @[fake];
-    for (CLLocationManager *mgr in [self.locationManagers allObjects]) {
+    NSArray *allMgrs = nil;
+    @synchronized(self) {
+        allMgrs = [self.locationManagers allObjects];
+    }
+    for (CLLocationManager *mgr in allMgrs) {
         if (!mgr) continue;
-        id<CLLocationManagerDelegate> del = mgr.delegate;
-        if (!del) continue;
-        if ([del respondsToSelector:@selector(locationManager:didUpdateLocations:)]) {
-            [del locationManager:mgr didUpdateLocations:fakeArr];
-        }
+        @try {
+            id<CLLocationManagerDelegate> del = mgr.delegate;
+            if (del && [del respondsToSelector:@selector(locationManager:didUpdateLocations:)]) {
+                [del locationManager:mgr didUpdateLocations:fakeArr];
+            }
+        } @catch (NSException *e) {}
     }
 }
 
@@ -110,14 +123,14 @@ static CLLocation *getFakeLocation(void) {
 - (id)init {
     self = %orig;
     if (self) {
-        [[WATweakFakeLocationManager shared].locationManagers addObject:self];
+        [[WATweakFakeLocationManager shared] addLocationManager:self];
     }
     return self;
 }
 
 - (void)setDelegate:(id)delegate {
     %orig;
-    [[WATweakFakeLocationManager shared].locationManagers addObject:self];
+    [[WATweakFakeLocationManager shared] addLocationManager:self];
     if (shouldFakeLocation()) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [[WATweakFakeLocationManager shared] lieToDelegates];
@@ -159,7 +172,7 @@ static CLLocation *getFakeLocation(void) {
 
 - (id)initWithCLLocationManager:(id)locationManager {
     if ([locationManager isKindOfClass:[CLLocationManager class]]) {
-        [[WATweakFakeLocationManager shared].locationManagers addObject:(CLLocationManager *)locationManager];
+        [[WATweakFakeLocationManager shared] addLocationManager:(CLLocationManager *)locationManager];
     }
     return %orig;
 }

@@ -79,13 +79,20 @@ static UIImage *downloadIconImage(void) {
 + (BOOL)isMediaViewerController:(UIViewController *)controller {
     if (!controller) return NO;
     NSString *cls = NSStringFromClass([controller class]);
+    if ([cls containsString:@"Picker"] ||
+        [cls containsString:@"Camera"] ||
+        [cls containsString:@"Document"] ||
+        [cls containsString:@"Contact"] ||
+        [cls containsString:@"Poll"] ||
+        [cls containsString:@"Sheet"] ||
+        [cls containsString:@"Alert"]) {
+        return NO;
+    }
     if ([cls containsString:@"ViewOnce"] ||
         [cls containsString:@"MediaBrowser"] ||
         [cls containsString:@"StatusViewer"] ||
         [cls containsString:@"PictureContainer"] ||
         [cls containsString:@"MediaViewer"] ||
-        [cls containsString:@"PhotoViewController"] ||
-        [cls containsString:@"VideoViewController"] ||
         [cls containsString:@"MediaContentDisplay"]) {
         return YES;
     }
@@ -960,46 +967,60 @@ static id findMediaInController(UIViewController *ctrl) {
         }];
     }];
 
-    id message = objc_getAssociatedObject(badge, "WATweakBadgeMsg");
-    UIView *cell = objc_getAssociatedObject(badge, "WATweakBadgeCell");
-
-    CGRect bFrame = CGRectZero;
-    if (cell && [cell respondsToSelector:@selector(bubbleFrame)]) {
-        @try {
-            NSMethodSignature *sig = [cell methodSignatureForSelector:@selector(bubbleFrame)];
-            if (sig && strcmp([sig methodReturnType], @encode(CGRect)) == 0) {
-                NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                [inv setTarget:cell];
-                [inv setSelector:@selector(bubbleFrame)];
-                [inv invoke];
-                [inv getReturnValue:&bFrame];
-            }
-        } @catch (NSException *e) {}
-    }
-    if (CGRectIsEmpty(bFrame) && cell && [cell respondsToSelector:@selector(backgroundBubbleView)]) {
-        @try {
-            #pragma clang diagnostic push
-            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            UIView *bg = (UIView *)[cell performSelector:@selector(backgroundBubbleView)];
-            #pragma clang diagnostic pop
-            if (bg) bFrame = [cell convertRect:bg.bounds fromView:bg];
-        } @catch (NSException *e) {}
-    }
-    if (CGRectIsEmpty(bFrame)) {
-        bFrame = badge.superview ? badge.superview.bounds : badge.frame;
-    }
-
-    [MediaSaver showEditHistoryForMessage:message bFrame:bFrame cell:cell ?: badge.superview];
-}
-
-+ (void)showEditHistoryForMessage:(id)message bFrame:(CGRect)bFrame cell:(UIView *)cell {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = nil;
+    UIWindow *window = badge.window;
+    if (!window) {
         for (UIWindow *w in [UIApplication sharedApplication].windows) {
             if (w.isKeyWindow) { window = w; break; }
         }
         if (!window && [UIApplication sharedApplication].windows.count > 0) {
             window = [UIApplication sharedApplication].windows.firstObject;
+        }
+    }
+    if (!window) return;
+
+    CGRect badgeFrame = CGRectZero;
+    @try {
+        badgeFrame = [badge convertRect:badge.bounds toView:window];
+    } @catch (NSException *e) {
+        badgeFrame = CGRectMake(window.bounds.size.width / 2.0 - 20, window.bounds.size.height / 2.0 - 10, 40, 20);
+    }
+
+    id message = objc_getAssociatedObject(badge, "WATweakBadgeMsg");
+    [MediaSaver showEditHistoryForMessage:message badgeFrame:badgeFrame inWindow:window];
+}
+
++ (void)showEditHistoryForMessage:(id)message bFrame:(CGRect)bFrame cell:(UIView *)cell {
+    UIWindow *window = nil;
+    for (UIWindow *w in [UIApplication sharedApplication].windows) {
+        if (w.isKeyWindow) { window = w; break; }
+    }
+    if (!window && [UIApplication sharedApplication].windows.count > 0) {
+        window = [UIApplication sharedApplication].windows.firstObject;
+    }
+    if (!window) return;
+
+    CGRect anchor = CGRectZero;
+    if (cell && cell.window && !CGRectIsEmpty(bFrame)) {
+        @try {
+            anchor = [cell convertRect:bFrame toView:window];
+        } @catch (NSException *e) {}
+    }
+    if (CGRectIsEmpty(anchor)) {
+        anchor = CGRectMake(window.bounds.size.width / 2.0 - 40, window.bounds.size.height / 2.0 - 20, 80, 40);
+    }
+    [self showEditHistoryForMessage:message badgeFrame:anchor inWindow:window];
+}
+
++ (void)showEditHistoryForMessage:(id)message badgeFrame:(CGRect)badgeFrame inWindow:(UIWindow *)targetWindow {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = targetWindow;
+        if (!window) {
+            for (UIWindow *w in [UIApplication sharedApplication].windows) {
+                if (w.isKeyWindow) { window = w; break; }
+            }
+            if (!window && [UIApplication sharedApplication].windows.count > 0) {
+                window = [UIApplication sharedApplication].windows.firstObject;
+            }
         }
         if (!window) return;
 
@@ -1008,36 +1029,96 @@ static id findMediaInController(UIViewController *ctrl) {
             [oldOverlay removeFromSuperview];
         }
 
-        NSString *sid = watweak_getStanzaIdFromMessage(message);
-        NSString *origText = watweak_getOriginalTextForStanzaID(sid);
-        NSString *currentText = nil;
-        if ([message respondsToSelector:@selector(text)]) {
-            #pragma clang diagnostic push
-            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            id t = [message performSelector:@selector(text)];
-            #pragma clang diagnostic pop
-            if ([t isKindOfClass:[NSString class]]) currentText = (NSString *)t;
+        NSString *sid = nil;
+        @try {
+            sid = watweak_getStanzaIdFromMessage(message);
+        } @catch (NSException *e) {}
+
+        NSString *origText = nil;
+        if (sid) {
+            origText = watweak_getOriginalTextForStanzaID(sid);
         }
+
+        NSString *currentText = nil;
+        @try {
+            if (message && [message respondsToSelector:@selector(text)]) {
+                currentText = [message text];
+            }
+        } @catch (NSException *e) {}
 
         if (!origText || origText.length == 0) {
             origText = @"(Original message text was not captured during this session)";
         }
 
+        // Safely extract original message date
+        NSDate *origDate = nil;
+        @try {
+            if (message && [message respondsToSelector:@selector(messageDate)]) {
+                NSMethodSignature *sig = [message methodSignatureForSelector:@selector(messageDate)];
+                if (sig) {
+                    const char *retType = [sig methodReturnType];
+                    if (retType && retType[0] == '@') {
+                        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                        [inv setTarget:message];
+                        [inv setSelector:@selector(messageDate)];
+                        [inv invoke];
+                        __unsafe_unretained id retObj = nil;
+                        [inv getReturnValue:&retObj];
+                        if ([retObj isKindOfClass:[NSDate class]]) origDate = (NSDate *)retObj;
+                    } else if (retType && (retType[0] == 'd' || retType[0] == 'f')) {
+                        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                        [inv setTarget:message];
+                        [inv setSelector:@selector(messageDate)];
+                        [inv invoke];
+                        double dVal = 0.0;
+                        [inv getReturnValue:&dVal];
+                        if (dVal > 0.0) origDate = [NSDate dateWithTimeIntervalSince1970:dVal];
+                    }
+                }
+            }
+        } @catch (NSException *e) {}
+
+        // Safely extract edit date
+        NSDate *editDate = nil;
+        if (sid) {
+            editDate = watweak_getEditDateForStanzaID(sid);
+        }
+        if (!editDate) {
+            @try {
+                if (message && [message respondsToSelector:@selector(latestEditTimestamp)]) {
+                    NSMethodSignature *sig = [message methodSignatureForSelector:@selector(latestEditTimestamp)];
+                    if (sig) {
+                        const char *retType = [sig methodReturnType];
+                        if (retType && retType[0] == '@') {
+                            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                            [inv setTarget:message];
+                            [inv setSelector:@selector(latestEditTimestamp)];
+                            [inv invoke];
+                            __unsafe_unretained id retObj = nil;
+                            [inv getReturnValue:&retObj];
+                            if ([retObj isKindOfClass:[NSDate class]]) editDate = (NSDate *)retObj;
+                            else if ([retObj isKindOfClass:[NSNumber class]]) editDate = [NSDate dateWithTimeIntervalSince1970:[retObj doubleValue]];
+                        } else if (retType && (retType[0] == 'd' || retType[0] == 'f')) {
+                            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                            [inv setTarget:message];
+                            [inv setSelector:@selector(latestEditTimestamp)];
+                            [inv invoke];
+                            double dVal = 0.0;
+                            [inv getReturnValue:&dVal];
+                            if (dVal > 0.0) editDate = [NSDate dateWithTimeIntervalSince1970:dVal];
+                        }
+                    }
+                }
+            } @catch (NSException *e) {}
+        }
+
+        NSDateFormatter *df = [[NSDateFormatter alloc] init];
+        df.dateFormat = @"HH:mm:ss";
+
         NSMutableArray *history = [NSMutableArray array];
 
         // 1. Original message entry
-        NSString *origTimeStr = @"[--:--:--]";
-        if ([message respondsToSelector:@selector(messageDate)]) {
-            #pragma clang diagnostic push
-            #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            id d = [message performSelector:@selector(messageDate)];
-            #pragma clang diagnostic pop
-            if ([d isKindOfClass:[NSDate class]]) {
-                NSDateFormatter *df = [[NSDateFormatter alloc] init];
-                df.dateFormat = @"HH:mm:ss";
-                origTimeStr = [NSString stringWithFormat:@"[%@]", [df stringFromDate:(NSDate *)d]];
-            }
-        }
+        NSString *origTimeStr = origDate ? [NSString stringWithFormat:@"[%@]", [df stringFromDate:origDate]] : @"[--:--:--]";
         [history addObject:@{
             @"badge": origTimeStr,
             @"label": @"Original message",
@@ -1046,23 +1127,7 @@ static id findMediaInController(UIViewController *ctrl) {
 
         // 2. Edited message entry
         if (currentText && currentText.length > 0 && ![currentText isEqualToString:origText]) {
-            NSString *editTimeStr = @"[--:--:--]";
-            if ([message respondsToSelector:@selector(latestEditTimestamp)]) {
-                #pragma clang diagnostic push
-                #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-                id ts = [message performSelector:@selector(latestEditTimestamp)];
-                #pragma clang diagnostic pop
-                NSDate *eDate = nil;
-                if ([ts isKindOfClass:[NSDate class]]) eDate = (NSDate *)ts;
-                else if ([ts isKindOfClass:[NSNumber class]] && [ts doubleValue] > 0) {
-                    eDate = [NSDate dateWithTimeIntervalSince1970:[ts doubleValue]];
-                }
-                if (eDate) {
-                    NSDateFormatter *df = [[NSDateFormatter alloc] init];
-                    df.dateFormat = @"HH:mm:ss";
-                    editTimeStr = [NSString stringWithFormat:@"[%@]", [df stringFromDate:eDate]];
-                }
-            }
+            NSString *editTimeStr = editDate ? [NSString stringWithFormat:@"[%@]", [df stringFromDate:editDate]] : @"[--:--:--]";
             [history addObject:@{
                 @"badge": editTimeStr,
                 @"label": @"Edited message",
@@ -1082,15 +1147,8 @@ static id findMediaInController(UIViewController *ctrl) {
         CGFloat screenW = window.bounds.size.width;
         CGFloat screenH = window.bounds.size.height;
 
-        CGRect bubbleInWindow;
-        if (cell && !CGRectIsEmpty(bFrame)) {
-            bubbleInWindow = [cell convertRect:bFrame toView:window];
-        } else {
-            bubbleInWindow = CGRectMake((screenW - 260.0) / 2.0, (screenH - 160.0) / 2.0, 260.0, 160.0);
-        }
-
-        CGFloat cardW = MAX(bubbleInWindow.size.width, 240.0);
-        if (cardW > screenW - 24.0) cardW = screenW - 24.0;
+        CGFloat cardW = screenW - 36.0;
+        if (cardW > 340.0) cardW = 340.0;
         if (cardW < 220.0) cardW = 220.0;
 
         CGFloat contentH = 28.0;
@@ -1103,13 +1161,13 @@ static id findMediaInController(UIViewController *ctrl) {
         if (contentH > maxH) contentH = maxH;
         if (contentH < 50.0) contentH = 50.0;
 
-        CGFloat cardX = bubbleInWindow.origin.x;
+        CGFloat cardX = badgeFrame.origin.x;
         if (cardX + cardW > screenW - 12.0) cardX = screenW - cardW - 12.0;
         if (cardX < 12.0) cardX = 12.0;
 
-        CGFloat cardY = bubbleInWindow.origin.y - contentH - 8.0;
+        CGFloat cardY = badgeFrame.origin.y - contentH - 8.0;
         if (cardY < 60.0) {
-            cardY = CGRectGetMaxY(bubbleInWindow) + 8.0;
+            cardY = CGRectGetMaxY(badgeFrame) + 8.0;
         }
         if (cardY + contentH > screenH - 40.0) {
             cardY = screenH - contentH - 40.0;

@@ -12,8 +12,8 @@
 
 + (id)chatQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
-        if ([self respondsToSelector:@selector(hdQuality)]) {
-            id q = [self hdQuality];
+        if ([self respondsToSelector:@selector(fullQuality)]) {
+            id q = [self fullQuality];
             if (q) return q;
         }
     }
@@ -22,8 +22,8 @@
 
 + (id)defaultChatQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
-        if ([self respondsToSelector:@selector(hdQuality)]) {
-            id q = [self hdQuality];
+        if ([self respondsToSelector:@selector(fullQuality)]) {
+            id q = [self fullQuality];
             if (q) return q;
         }
     }
@@ -33,13 +33,6 @@
 - (NSUInteger)imageMaximumEdge {
     if (WATweakGetBool(kUncompressedPhotos, YES)) {
         return 4096;
-    }
-    return %orig;
-}
-
-- (CGFloat)imageQuality {
-    if (WATweakGetBool(kUncompressedPhotos, YES)) {
-        return 1.0;
     }
     return %orig;
 }
@@ -68,7 +61,11 @@
 
 + (id)encodeFromUrlWithInputImageUrl:(id)arg1 outputImageUrl:(id)arg2 targetSize:(CGSize)arg3 imageQuality:(CGFloat)arg4 peakMemoryUseBytes:(NSUInteger)arg5 isHDImage:(BOOL)arg6 pjpegScans:(id)arg7 uitConfig:(id)arg8 abProperties:(id)arg9 progressCallback:(id)arg10 parseError:(id)arg11 {
     if (WATweakGetBool(kUncompressedPhotos, YES)) {
-        return %orig(arg1, arg2, arg3, 1.0, arg5, YES, arg7, arg8, arg9, arg10, arg11);
+        @try {
+            return %orig(arg1, arg2, arg3, 1.0, arg5, isHDImage, pjpegScans, uitConfig, abProperties, progressCallback, parseError);
+        } @catch (NSException *e) {
+            return %orig;
+        }
     }
     return %orig;
 }
@@ -323,6 +320,14 @@ extern "C" NSString *watweak_getOriginalTextForStanzaID(NSString *sid) {
     }
     @synchronized(sWATweakOriginalTexts) {
         return sWATweakOriginalTexts[sid];
+    }
+}
+
+extern "C" NSDate *watweak_getEditDateForStanzaID(NSString *sid) {
+    if (!sid) return nil;
+    watweak_initEditStorageIfNeeded();
+    @synchronized(sWATweakEditDates) {
+        return sWATweakEditDates[sid];
     }
 }
 
@@ -2334,6 +2339,7 @@ static BOOL isTelemetryURL(NSURL *url) {
 
 %ctor {
     @autoreleasepool {
+        %init;
         [NSURLProtocol registerClass:[WATweakTelemetryBlockerProtocol class]];
     }
 }
