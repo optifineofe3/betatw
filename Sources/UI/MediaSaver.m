@@ -1085,14 +1085,20 @@ static id findMediaInController(UIViewController *ctrl) {
         }
         if (!editDate) {
             @try {
-                if (message && [message respondsToSelector:@selector(latestEditTimestamp)]) {
-                    NSMethodSignature *sig = [message methodSignatureForSelector:@selector(latestEditTimestamp)];
+                SEL sel = NULL;
+                if (message && [message respondsToSelector:@selector(lastEditTimestamp)]) {
+                    sel = @selector(lastEditTimestamp);
+                } else if (message && [message respondsToSelector:@selector(latestEditTimestamp)]) {
+                    sel = @selector(latestEditTimestamp);
+                }
+                if (sel) {
+                    NSMethodSignature *sig = [message methodSignatureForSelector:sel];
                     if (sig) {
                         const char *retType = [sig methodReturnType];
                         if (retType && retType[0] == '@') {
                             NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
                             [inv setTarget:message];
-                            [inv setSelector:@selector(latestEditTimestamp)];
+                            [inv setSelector:sel];
                             [inv invoke];
                             __unsafe_unretained id retObj = nil;
                             [inv getReturnValue:&retObj];
@@ -1101,7 +1107,7 @@ static id findMediaInController(UIViewController *ctrl) {
                         } else if (retType && (retType[0] == 'd' || retType[0] == 'f')) {
                             NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
                             [inv setTarget:message];
-                            [inv setSelector:@selector(latestEditTimestamp)];
+                            [inv setSelector:sel];
                             [inv invoke];
                             double dVal = 0.0;
                             [inv getReturnValue:&dVal];
@@ -1142,6 +1148,7 @@ static id findMediaInController(UIViewController *ctrl) {
         backdrop.userInteractionEnabled = YES;
 
         UITapGestureRecognizer *dismissTap = [[UITapGestureRecognizer alloc] initWithTarget:[MediaSaver shared] action:@selector(dismissEditHistoryOverlay)];
+        dismissTap.delegate = [MediaSaver shared];
         [backdrop addGestureRecognizer:dismissTap];
 
         CGFloat screenW = window.bounds.size.width;
@@ -1252,6 +1259,17 @@ static id findMediaInController(UIViewController *ctrl) {
             [overlay removeFromSuperview];
         }];
     }
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    return YES;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (gestureRecognizer.view && gestureRecognizer.view.tag == 998898) {
+        return (touch.view == gestureRecognizer.view);
+    }
+    return YES;
 }
 
 @end

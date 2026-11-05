@@ -10,26 +10,6 @@
 
 %hook WAMultiSendMediaItemQuality
 
-+ (id)chatQuality {
-    if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
-        if ([self respondsToSelector:@selector(fullQuality)]) {
-            id q = [self fullQuality];
-            if (q) return q;
-        }
-    }
-    return %orig;
-}
-
-+ (id)defaultChatQuality {
-    if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
-        if ([self respondsToSelector:@selector(fullQuality)]) {
-            id q = [self fullQuality];
-            if (q) return q;
-        }
-    }
-    return %orig;
-}
-
 - (NSUInteger)imageMaximumEdge {
     if (WATweakGetBool(kUncompressedPhotos, YES)) {
         return 4096;
@@ -62,7 +42,7 @@
 + (id)encodeFromUrlWithInputImageUrl:(id)arg1 outputImageUrl:(id)arg2 targetSize:(CGSize)arg3 imageQuality:(CGFloat)arg4 peakMemoryUseBytes:(NSUInteger)arg5 isHDImage:(BOOL)arg6 pjpegScans:(id)arg7 uitConfig:(id)arg8 abProperties:(id)arg9 progressCallback:(id)arg10 parseError:(id)arg11 {
     if (WATweakGetBool(kUncompressedPhotos, YES)) {
         @try {
-            return %orig(arg1, arg2, arg3, 1.0, arg5, isHDImage, pjpegScans, uitConfig, abProperties, progressCallback, parseError);
+            return %orig(arg1, arg2, arg3, 1.0, arg5, YES, arg7, arg8, arg9, arg10, arg11);
         } @catch (NSException *e) {
             return %orig;
         }
@@ -627,6 +607,16 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 %end
 
+@interface WATweakBadgeLabel : UILabel
+@end
+
+@implementation WATweakBadgeLabel
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    CGRect touchArea = CGRectInset(self.bounds, -12.0, -12.0);
+    return CGRectContainsPoint(touchArea, point);
+}
+@end
+
 %hook WAMessageBubbleTableViewCell
 
 - (void)layoutSubviews {
@@ -764,7 +754,7 @@ static BOOL watweak_isMessageEdited(id msg) {
 
     if (isEdit) {
         if (!editBadge) {
-            editBadge = [[UILabel alloc] init];
+            editBadge = [[WATweakBadgeLabel alloc] init];
             editBadge.tag = 998856;
             editBadge.textAlignment = NSTextAlignmentCenter;
             editBadge.font = badgeFont;
@@ -788,6 +778,8 @@ static BOOL watweak_isMessageEdited(id msg) {
         }
         if (!alreadyAttached) {
             UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:[MediaSaver shared] action:@selector(handleEditBadgeTap:)];
+            tap.delegate = [MediaSaver shared];
+            tap.cancelsTouchesInView = YES;
             objc_setAssociatedObject(tap, "isWATweakEditGesture", @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             [editBadge addGestureRecognizer:tap];
         }

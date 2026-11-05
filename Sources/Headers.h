@@ -83,6 +83,7 @@
 - (BOOL)fromMe;
 - (BOOL)isMessageEdited;
 - (BOOL)isEdited;
+- (id)lastEditTimestamp;
 - (id)latestEditTimestamp;
 - (id)latestEditReceivedTimestamp;
 - (id)messageID;
