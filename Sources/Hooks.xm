@@ -12,8 +12,8 @@
 
 + (id)chatQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
-        if ([self respondsToSelector:@selector(dualUploadHdQuality)]) {
-            return [self dualUploadHdQuality];
+        if ([self respondsToSelector:@selector(hdQuality)]) {
+            return [self hdQuality];
         }
     }
     return %orig;
@@ -21,8 +21,8 @@
 
 + (id)defaultChatQuality {
     if (WATweakGetBool(kUncompressedPhotos, YES) || WATweakGetBool(kUncompressedVideos, YES)) {
-        if ([self respondsToSelector:@selector(dualUploadHdQuality)]) {
-            return [self dualUploadHdQuality];
+        if ([self respondsToSelector:@selector(hdQuality)]) {
+            return [self hdQuality];
         }
     }
     return %orig;
@@ -1180,7 +1180,7 @@ static BOOL isMetaTrashString(NSString *str) {
     if ([s containsString:@"account center"] || [s containsString:@"accounts center"] ||
         [s containsString:@"центр аккаунтов"] || [s containsString:@"центр учетных записей"]) return YES;
     if ([s containsString:@"also from meta"] || [s containsString:@"from meta"] || [s containsString:@"от meta"]) return YES;
-    if ([s containsString:@"facebook"] || [s containsString:@"threads"] || [s containsString:@"instagram"]) return YES;
+    if ([s containsString:@"meta verified"] || [s containsString:@"meta ai"] || [s containsString:@"foa"]) return YES;
     return NO;
 }
 
@@ -1189,11 +1189,19 @@ static BOOL isMetaTrashRow(id row) {
     @try {
         if ([row respondsToSelector:@selector(text)]) {
             id t = [row performSelector:@selector(text)];
-            if ([t isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)t)) return YES;
+            if ([t isKindOfClass:[NSString class]]) {
+                NSString *ts = [(NSString *)t lowercaseString];
+                if (isMetaTrashString(ts) || [ts containsString:@"facebook"] || [ts containsString:@"instagram"] || [ts containsString:@"threads"]) {
+                    return YES;
+                }
+            }
         }
         if ([row respondsToSelector:@selector(detailText)]) {
             id d = [row performSelector:@selector(detailText)];
-            if ([d isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)d)) return YES;
+            if ([d isKindOfClass:[NSString class]]) {
+                NSString *ds = [(NSString *)d lowercaseString];
+                if (isMetaTrashString(ds)) return YES;
+            }
         }
         NSString *rowCls = NSStringFromClass([row class]);
         if ([rowCls containsString:@"FOA"] || [rowCls containsString:@"Bookmark"] || [rowCls containsString:@"AccountsCenter"]) return YES;
@@ -1214,18 +1222,9 @@ static BOOL isMetaTrashSection(id section) {
             id f = [section performSelector:@selector(footerTitle)];
             if ([f isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)f)) return YES;
         }
-        if ([section respondsToSelector:@selector(rows)]) {
-            NSArray *rows = [section performSelector:@selector(rows)];
-            if ([rows isKindOfClass:[NSArray class]] && rows.count > 0) {
-                BOOL allTrash = YES;
-                for (id r in rows) {
-                    if (!isMetaTrashRow(r)) {
-                        allTrash = NO;
-                        break;
-                    }
-                }
-                if (allTrash) return YES;
-            }
+        if ([section respondsToSelector:@selector(footerText)]) {
+            id f = [section performSelector:@selector(footerText)];
+            if ([f isKindOfClass:[NSString class]] && isMetaTrashString((NSString *)f)) return YES;
         }
     } @catch (NSException *e) {}
     return NO;
@@ -1300,62 +1299,6 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     } @catch (NSException *e) {}
 }
 
-%hook WAStaticTableViewController
-
-- (void)addSection:(id)section {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        if (isMetaTrashSection(section)) {
-            return;
-        }
-    }
-    %orig;
-}
-
-- (void)insertSection:(id)section atIndex:(NSUInteger)index {
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        if (isMetaTrashSection(section)) {
-            return;
-        }
-    }
-    %orig;
-}
-
-- (void)setSections:(NSArray *)sections {
-    if (WATweakGetBool(kHideMetaTrash, YES) && [sections isKindOfClass:[NSArray class]]) {
-        NSMutableArray *filtered = [NSMutableArray array];
-        for (id sec in sections) {
-            if (!isMetaTrashSection(sec)) {
-                [filtered addObject:sec];
-            }
-        }
-        %orig(filtered);
-        return;
-    }
-    %orig;
-}
-
-- (void)loadSections {
-    %orig;
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        @try {
-            NSArray *secs = [self sections];
-            if (secs && [secs isKindOfClass:[NSArray class]]) {
-                NSMutableArray *filtered = [NSMutableArray array];
-                for (id sec in secs) {
-                    if (!isMetaTrashSection(sec)) {
-                        [filtered addObject:sec];
-                    }
-                }
-                if (filtered.count != secs.count) {
-                    [self setSections:filtered];
-                }
-            }
-        } @catch (NSException *e) {}
-    }
-}
-
-%end
-
 %hook WASettingsViewController
 
 - (void)addSubscriptionsRowIfEligibleToSection:(id)arg1 {
@@ -1386,6 +1329,45 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
     return %orig;
 }
 
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    NSInteger count = %orig;
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            while (count > 0) {
+                NSInteger secIdx = count - 1;
+                id sec = [self sectionAtIndex:secIdx];
+                BOOL isTrash = isMetaTrashSection(sec);
+                if (!isTrash) {
+                    @try {
+                        id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:secIdx]];
+                        if (r0 && isMetaTrashRow(r0)) {
+                            isTrash = YES;
+                        }
+                    } @catch (NSException *e) {}
+                }
+                if (isTrash) {
+                    count--;
+                } else {
+                    break;
+                }
+            }
+        } @catch (NSException *e) {}
+    }
+    return count;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if (WATweakGetBool(kHideMetaTrash, YES)) {
+        @try {
+            id sec = [self sectionAtIndex:section];
+            if (isMetaTrashSection(sec)) return 0;
+            id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:section]];
+            if (r0 && isMetaTrashRow(r0)) return 0;
+        } @catch (NSException *e) {}
+    }
+    return %orig;
+}
+
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (WATweakGetBool(kHideMetaTrash, YES)) {
         @try {
@@ -1403,6 +1385,8 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) return 0.001f;
+            id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:section]];
+            if (r0 && isMetaTrashRow(r0)) return 0.001f;
         } @catch (NSException *e) {}
     }
     return %orig;
@@ -1413,10 +1397,8 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) return 0.001f;
-            NSArray *secs = [self sections];
-            if (secs && section >= (NSInteger)secs.count - 1) {
-                return 0.001f;
-            }
+            id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:section]];
+            if (r0 && isMetaTrashRow(r0)) return 0.001f;
         } @catch (NSException *e) {}
     }
     return %orig;
@@ -1427,6 +1409,10 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             id sec = [self sectionAtIndex:section];
             if (isMetaTrashSection(sec)) {
+                return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
+            }
+            id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:section]];
+            if (r0 && isMetaTrashRow(r0)) {
                 return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
             }
         } @catch (NSException *e) {}
@@ -1441,8 +1427,8 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
             if (isMetaTrashSection(sec)) {
                 return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
             }
-            NSArray *secs = [self sections];
-            if (secs && section >= (NSInteger)secs.count - 1) {
+            id r0 = [self rowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:section]];
+            if (r0 && isMetaTrashRow(r0)) {
                 return [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0.001f)];
             }
         } @catch (NSException *e) {}
@@ -1554,28 +1540,8 @@ static void watweak_filterChatListNavBarButtons(UIViewController *vc) {
         @try {
             if ([self respondsToSelector:@selector(tableView)]) {
                 UITableView *tv = [self tableView];
-                if (tv) {
+                if (tv && tv.tableFooterView && tv.tableFooterView.frame.size.height > 1.0f) {
                     tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, CGFLOAT_MIN)];
-                    UIEdgeInsets insets = tv.contentInset;
-                    insets.bottom = 0;
-                    tv.contentInset = insets;
-                }
-            }
-        } @catch (NSException *e) {}
-    }
-}
-
-- (void)viewDidLayoutSubviews {
-    %orig;
-    if (WATweakGetBool(kHideMetaTrash, YES)) {
-        @try {
-            if ([self respondsToSelector:@selector(tableView)]) {
-                UITableView *tv = [self tableView];
-                if (tv) {
-                    tv.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, CGFLOAT_MIN)];
-                    UIEdgeInsets insets = tv.contentInset;
-                    insets.bottom = 0;
-                    tv.contentInset = insets;
                 }
             }
         } @catch (NSException *e) {}
