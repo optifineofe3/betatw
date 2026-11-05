@@ -11,6 +11,8 @@
 + (id)chatQuality;
 + (id)defaultChatQuality;
 + (id)hdQuality;
++ (id)dualUploadHdQuality;
++ (id)dualUploadSdQuality;
 + (NSUInteger)maximumValidImageEdge;
 - (CGFloat)imageQuality;
 - (NSUInteger)imageMaximumEdge;
