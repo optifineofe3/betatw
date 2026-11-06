@@ -25,6 +25,7 @@ void watweak_cacheInitialTextForStanzaID(NSString *sid, NSString *text);
 + (void)saveImageToPhotos:(UIImage *)image;
 + (void)showToast:(NSString *)message success:(BOOL)success;
 
++ (void)showEditHistoryWithData:(NSDictionary *)data anchorFrame:(CGRect)anchorFrame inWindow:(UIWindow *)window;
 + (void)showEditHistoryForMessage:(id)message badgeFrame:(CGRect)badgeFrame inWindow:(UIWindow *)window;
 + (void)showEditHistoryForMessage:(id)message bFrame:(CGRect)bFrame cell:(UIView *)cell;
 - (void)handleEditBadgeTap:(UITapGestureRecognizer *)gesture;

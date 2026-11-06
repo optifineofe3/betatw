@@ -715,13 +715,19 @@ static BOOL watweak_isMessageEdited(id msg) {
     }
 
     CGFloat badgeHeight = 13.5;
-    CGFloat minX = 6.0;
-    CGFloat maxX = rowWidth - 6.0;
+    CGFloat minX = 5.0;
+    CGFloat maxX = rowWidth - 5.0;
 
     CGFloat availableSpace = isOutgoing ? bFrame.origin.x : (rowWidth - CGRectGetMaxX(bFrame));
-    BOOL hasPlentyOfSpace = (availableSpace >= 75.0);
+    BOOL hasPlentyOfSpace = (availableSpace >= 85.0);
     BOOL isMultiLine = (bFrame.size.height > 55.0);
-    BOOL shouldStack = (isDel && isEdit) && (!hasPlentyOfSpace && isMultiLine);
+    BOOL isSingleLineCrowded = NO;
+    if (!isMultiLine && isDel && isEdit && !hasPlentyOfSpace) {
+        if (currentText && currentText.length >= 34) {
+            isSingleLineCrowded = YES;
+        }
+    }
+    BOOL shouldStack = (isDel && isEdit) && (!hasPlentyOfSpace && (isMultiLine || isSingleLineCrowded));
 
     NSString *editText = (shouldStack || (!hasPlentyOfSpace && isMultiLine)) ? @"EDT" : @"EDITED";
 
@@ -783,8 +789,37 @@ static BOOL watweak_isMessageEdited(id msg) {
             objc_setAssociatedObject(tap, "isWATweakEditGesture", @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             [editBadge addGestureRecognizer:tap];
         }
-        objc_setAssociatedObject(editBadge, "WATweakBadgeMsg", message, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(editBadge, "WATweakBadgeCell", self, OBJC_ASSOCIATION_ASSIGN);
+
+        NSString *origText = sid ? watweak_getOriginalTextForStanzaID(sid) : nil;
+        if (!origText || origText.length == 0) {
+            origText = @"(Original message text was not captured during this session)";
+        }
+        NSDate *origDate = nil;
+        @try {
+            if ([message respondsToSelector:@selector(messageDate)]) {
+                id md = [message performSelector:@selector(messageDate)];
+                if ([md isKindOfClass:[NSDate class]]) origDate = (NSDate *)md;
+            }
+        } @catch (NSException *e) {}
+
+        NSDate *editDate = sid ? watweak_getEditDateForStanzaID(sid) : nil;
+        if (!editDate) {
+            @try {
+                if ([message respondsToSelector:@selector(lastEditTimestamp)]) {
+                    id d = [message performSelector:@selector(lastEditTimestamp)];
+                    if ([d isKindOfClass:[NSDate class]]) editDate = (NSDate *)d;
+                    else if ([d isKindOfClass:[NSNumber class]]) editDate = [NSDate dateWithTimeIntervalSince1970:[d doubleValue]];
+                }
+            } @catch (NSException *e) {}
+        }
+
+        NSMutableDictionary *badgeData = [NSMutableDictionary dictionaryWithCapacity:4];
+        if (origText) badgeData[@"origText"] = origText;
+        if (currentText) badgeData[@"currentText"] = currentText;
+        if (origDate) badgeData[@"origDate"] = origDate;
+        if (editDate) badgeData[@"editDate"] = editDate;
+
+        objc_setAssociatedObject(editBadge, "WATweakBadgeData", [badgeData copy], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     } else {
         if (editBadge) editBadge.hidden = YES;
     }
@@ -857,7 +892,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -879,7 +916,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -908,7 +947,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -937,7 +978,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -980,7 +1023,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -1009,7 +1054,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -1038,7 +1085,9 @@ static BOOL watweak_isMessageEdited(id msg) {
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
-    [MediaSaver attachToController:self];
+    if ([MediaSaver isMediaViewerController:self]) {
+        [MediaSaver attachToController:self];
+    }
 }
 
 - (void)viewDidLayoutSubviews {
@@ -1084,6 +1133,11 @@ static BOOL watweak_isMessageEdited(id msg) {
     if ([MediaSaver isMediaViewerController:self]) {
         [MediaSaver attachToController:self];
     }
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    [MediaSaver detachFromController:self animated:animated];
 }
 
 %end

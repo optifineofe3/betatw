@@ -5,11 +5,13 @@
 #import "Headers.h"
 
 static inline BOOL shouldFixFilePicker(void) {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:FILE_PICKER_FIX_KEY];
+    return WATweakGetBool(FILE_PICKER_FIX_KEY, YES);
 }
 
 static NSURL *copyURLToSandbox(NSURL *url) {
     if (!url) return nil;
+    if ([url.path containsString:FILE_PICKER_PATH]) return url;
+
     NSString *customFolderName = [NSString stringWithFormat:@"watweak-%@", [[NSUUID UUID] UUIDString]];
     NSString *uglyHackPath = [NSTemporaryDirectory() stringByAppendingPathComponent:FILE_PICKER_PATH];
     NSString *ourPath = [uglyHackPath stringByAppendingPathComponent:customFolderName];
@@ -20,6 +22,9 @@ static NSURL *copyURLToSandbox(NSURL *url) {
     }
 
     NSString *fileName = [url lastPathComponent];
+    if (!fileName || fileName.length == 0) {
+        fileName = @"media_file";
+    }
     NSString *destPath = [ourPath stringByAppendingPathComponent:fileName];
     NSURL *destURL = [NSURL fileURLWithPath:destPath];
 
@@ -104,6 +109,51 @@ static void swizzleDelegateClassIfNeeded(Class cls) {
     }
 }
 
+static void (*orig_didFinishPickingMediaWithInfo)(id, SEL, id, NSDictionary *) = NULL;
+static void watweak_didFinishPickingMediaWithInfo(id self, SEL _cmd, id picker, NSDictionary *info) {
+    if (!shouldFixFilePicker() || !info) {
+        if (orig_didFinishPickingMediaWithInfo) {
+            orig_didFinishPickingMediaWithInfo(self, _cmd, picker, info);
+        }
+        return;
+    }
+
+    NSMutableDictionary *mutInfo = [info mutableCopy];
+    for (NSString *key in @[@"UIImagePickerControllerImageURL", @"UIImagePickerControllerMediaURL", @"UIImagePickerControllerReferenceURL"]) {
+        id val = info[key];
+        if ([val isKindOfClass:[NSURL class]]) {
+            NSURL *copied = copyURLToSandbox((NSURL *)val);
+            if (copied) {
+                mutInfo[key] = copied;
+            }
+        }
+    }
+
+    if (orig_didFinishPickingMediaWithInfo) {
+        orig_didFinishPickingMediaWithInfo(self, _cmd, picker, [mutInfo copy]);
+    }
+}
+
+static void swizzleImagePickerDelegateClassIfNeeded(Class cls) {
+    if (!cls) return;
+    static NSMutableSet *swizzledImageClasses = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        swizzledImageClasses = [NSMutableSet set];
+    });
+
+    NSString *clsName = NSStringFromClass(cls);
+    if ([swizzledImageClasses containsObject:clsName]) return;
+    [swizzledImageClasses addObject:clsName];
+
+    SEL sel = @selector(imagePickerController:didFinishPickingMediaWithInfo:);
+    Method m = class_getInstanceMethod(cls, sel);
+    if (m) {
+        orig_didFinishPickingMediaWithInfo = (void (*)(id, SEL, id, NSDictionary *))method_getImplementation(m);
+        method_setImplementation(m, (IMP)watweak_didFinishPickingMediaWithInfo);
+    }
+}
+
 %hook UIDocumentPickerViewController
 
 - (id)initForOpeningContentTypes:(id)types asCopy:(BOOL)copy {
@@ -129,6 +179,17 @@ static void swizzleDelegateClassIfNeeded(Class cls) {
 
 %end
 
+%hook UIImagePickerController
+
+- (void)setDelegate:(id<UINavigationControllerDelegate, UIImagePickerControllerDelegate>)delegate {
+    if (delegate && shouldFixFilePicker()) {
+        swizzleImagePickerDelegateClassIfNeeded([(id)delegate class]);
+    }
+    %orig;
+}
+
+%end
+
 %hook NSURL
 
 - (BOOL)startAccessingSecurityScopedResource {
@@ -136,13 +197,24 @@ static void swizzleDelegateClassIfNeeded(Class cls) {
         return %orig;
     }
 
-    if ([self.path containsString:FILE_PICKER_PATH]) {
-        NSFileManager *fm = [NSFileManager defaultManager];
-        if ([fm fileExistsAtPath:self.path]) {
+    if ([self isFileURL]) {
+        NSString *p = self.path;
+        if (p && [[NSFileManager defaultManager] fileExistsAtPath:p]) {
             return YES;
         }
     }
     return %orig;
+}
+
+- (void)stopAccessingSecurityScopedResource {
+    if (!shouldFixFilePicker()) {
+        %orig;
+        return;
+    }
+    if ([self isFileURL]) {
+        return;
+    }
+    %orig;
 }
 
 %end

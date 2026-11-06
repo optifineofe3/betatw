@@ -4,6 +4,8 @@
 #import <Contacts/Contacts.h>
 #import <Security/Security.h>
 #import <Intents/Intents.h>
+#import <AVFoundation/AVFoundation.h>
+#import <Photos/Photos.h>
 #import <objc/runtime.h>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -405,21 +407,7 @@ static CFDictionaryRef hook_SecTaskCopyValuesForEntitlements(SecTaskRef task, CF
 
 %end
 
-#pragma mark - 8. Profile Setup Safeguards & UI Flow Logging
-
-%hook UIViewController
-
-- (void)viewDidLoad {
-    %orig;
-    WATweakLog(@"[UI] viewDidLoad: %@", NSStringFromClass([self class]));
-}
-
-- (void)viewDidAppear:(BOOL)animated {
-    %orig;
-    WATweakLog(@"[UI] viewDidAppear: %@", NSStringFromClass([self class]));
-}
-
-%end
+#pragma mark - 8. Profile Setup Safeguards
 
 %hook WAProfileViewController
 
@@ -492,7 +480,99 @@ static CFDictionaryRef hook_SecTaskCopyValuesForEntitlements(SecTaskRef task, CF
 
 %end
 
-#pragma mark - 10. WhatsApp Contextualize Permissions Primer Bypass
+#pragma mark - 10. Camera & Photos Authorization Fix for LiveContainer
+
+%hook AVCaptureDevice
+
++ (AVAuthorizationStatus)authorizationStatusForMediaType:(AVMediaType)mediaType {
+    AVAuthorizationStatus status = %orig;
+    if (status == AVAuthorizationStatusNotDetermined) {
+        return AVAuthorizationStatusAuthorized;
+    }
+    return status;
+}
+
++ (void)requestAccessForMediaType:(AVMediaType)mediaType completionHandler:(void (^)(BOOL granted))handler {
+    if (handler) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            handler(YES);
+        });
+    }
+}
+
+%end
+
+%hook PHPhotoLibrary
+
++ (PHAuthorizationStatus)authorizationStatus {
+    PHAuthorizationStatus status = %orig;
+    if (status == PHAuthorizationStatusNotDetermined) {
+        return PHAuthorizationStatusAuthorized;
+    }
+    return status;
+}
+
++ (PHAuthorizationStatus)authorizationStatusForAccessLevel:(PHAccessLevel)accessLevel {
+    PHAuthorizationStatus status = %orig;
+    if (status == PHAuthorizationStatusNotDetermined) {
+        return PHAuthorizationStatusAuthorized;
+    }
+    return status;
+}
+
++ (void)requestAuthorization:(void (^)(PHAuthorizationStatus status))handler {
+    if (handler) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            handler(PHAuthorizationStatusAuthorized);
+        });
+    }
+}
+
++ (void)requestAuthorizationForAccessLevel:(PHAccessLevel)accessLevel handler:(void (^)(PHAuthorizationStatus status))handler {
+    if (handler) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            handler(PHAuthorizationStatusAuthorized);
+        });
+    }
+}
+
+%end
+
+#pragma mark - 11. In-App Media Picker Enforcement (LiveContainer Remote PHPicker Fix)
+
+%hook WAABProperties
+
+- (BOOL)ios_media_picker_use_system_for_library {
+    return NO;
+}
+
+- (BOOL)ios_media_picker_use_system_for_authorization_authorized {
+    return NO;
+}
+
+- (BOOL)ios_media_picker_use_system_for_authorization_not_determined {
+    return NO;
+}
+
+- (BOOL)ios_media_picker_use_system_for_authorization_limited {
+    return NO;
+}
+
+- (BOOL)ios_media_picker_use_system_for_authorization_restricted {
+    return NO;
+}
+
+- (BOOL)ios_media_picker_use_system_for_authorization_denied {
+    return NO;
+}
+
+- (BOOL)ios_media_picker_use_system_hide_toolbar {
+    return NO;
+}
+
+%end
+
+#pragma mark - 12. WhatsApp Contextualize Permissions Primer Bypass
 
 %hook WAContextualizePermissionsHelper
 

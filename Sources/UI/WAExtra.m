@@ -360,7 +360,7 @@ typedef NS_ENUM(NSInteger, WA_SETTINGS_SECTIONS) {
         title = WALoc(@"FIX_FILE_PICKER_TITLE");
         subtitle = WALoc(@"FIX_FILE_PICKER_SUBTITLE");
         prefKey = FILE_PICKER_FIX_KEY;
-        defaultVal = NO;
+        defaultVal = YES;
     } else if (indexPath.section == SEC_FAKE_LOCATION) {
         title = WALoc(@"ENABLE_FAKE_LOCATION_TITLE");
         subtitle = WALoc(@"ENABLE_FAKE_LOCATION_SUBTITLE");

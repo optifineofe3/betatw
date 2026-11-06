@@ -101,9 +101,11 @@ static UIImage *downloadIconImage(void) {
 
 + (void)attachToController:(UIViewController *)controller {
     if (!controller || !controller.isViewLoaded) return;
+    if (![self isMediaViewerController:controller]) return;
     
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!controller || !controller.isViewLoaded) return;
+        if (![self isMediaViewerController:controller]) return;
         
         UIView *view = controller.view;
         if (!view) return;
@@ -118,7 +120,7 @@ static UIImage *downloadIconImage(void) {
             return;
         }
         
-        CGFloat btnSize = 46.0;
+        CGFloat btnSize = 42.0;
         CGRect bounds = view.bounds;
         if (bounds.size.width < 50 || bounds.size.height < 50) {
             bounds = [UIScreen mainScreen].bounds;
@@ -141,12 +143,14 @@ static UIImage *downloadIconImage(void) {
         btn.frame = initialFrame;
         btn.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
         btn.targetController = controller;
-        btn.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.10 alpha:0.88];
+        btn.backgroundColor = [UIColor colorWithRed:0.06 green:0.06 blue:0.08 alpha:0.90];
         btn.tintColor = [UIColor whiteColor];
-        btn.layer.cornerRadius = btnSize / 2.0;
+        btn.layer.cornerRadius = 21.0;
+        btn.layer.borderWidth = 0.0;
+        btn.layer.borderColor = nil;
         btn.layer.shadowColor = [UIColor blackColor].CGColor;
-        btn.layer.shadowOpacity = 0.45;
-        btn.layer.shadowOffset = CGSizeMake(0, 3);
+        btn.layer.shadowOpacity = 0.40;
+        btn.layer.shadowOffset = CGSizeMake(0, 2);
         btn.layer.shadowRadius = 6.0;
         btn.layer.zPosition = 999999;
         btn.clipsToBounds = NO;
@@ -173,17 +177,23 @@ static UIImage *downloadIconImage(void) {
 
 + (void)detachFromController:(UIViewController *)controller animated:(BOOL)animated {
     if (!controller || !controller.isViewLoaded) return;
-    UIView *btn = [controller.view viewWithTag:998811];
+    UIView *btn = [controller.view viewWithTag:998811] ?: [controller.view.window viewWithTag:998811];
     if (!btn) return;
     
+    if (btn.alpha <= 0.05) {
+        [btn removeFromSuperview];
+        return;
+    }
+    
     if (animated) {
-        [UIView animateWithDuration:0.15 animations:^{
+        [UIView animateWithDuration:0.20 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
             btn.alpha = 0.0;
             btn.transform = CGAffineTransformMakeScale(0.85, 0.85);
         } completion:^(BOOL finished) {
             [btn removeFromSuperview];
         }];
     } else {
+        btn.alpha = 0.0;
         [btn removeFromSuperview];
     }
 }
@@ -978,15 +988,22 @@ static id findMediaInController(UIViewController *ctrl) {
     }
     if (!window) return;
 
-    CGRect badgeFrame = CGRectZero;
+    CGRect anchorFrame = CGRectZero;
     @try {
-        badgeFrame = [badge convertRect:badge.bounds toView:window];
+        anchorFrame = [badge convertRect:badge.bounds toView:window];
     } @catch (NSException *e) {
-        badgeFrame = CGRectMake(window.bounds.size.width / 2.0 - 20, window.bounds.size.height / 2.0 - 10, 40, 20);
+        anchorFrame = CGRectMake((window.bounds.size.width - 60.0) / 2.0, (window.bounds.size.height - 30.0) / 2.0, 60.0, 30.0);
     }
 
-    id message = objc_getAssociatedObject(badge, "WATweakBadgeMsg");
-    [MediaSaver showEditHistoryForMessage:message badgeFrame:badgeFrame inWindow:window];
+    NSDictionary *badgeData = objc_getAssociatedObject(badge, "WATweakBadgeData");
+    if (!badgeData) {
+        // Safe fallback for compatibility
+        id message = objc_getAssociatedObject(badge, "WATweakBadgeMsg");
+        [MediaSaver showEditHistoryForMessage:message badgeFrame:anchorFrame inWindow:window];
+        return;
+    }
+
+    [MediaSaver showEditHistoryWithData:badgeData anchorFrame:anchorFrame inWindow:window];
 }
 
 + (void)showEditHistoryForMessage:(id)message bFrame:(CGRect)bFrame cell:(UIView *)cell {
@@ -1000,7 +1017,7 @@ static id findMediaInController(UIViewController *ctrl) {
     if (!window) return;
 
     CGRect anchor = CGRectZero;
-    if (cell && cell.window && !CGRectIsEmpty(bFrame)) {
+    if (cell && !CGRectIsEmpty(bFrame)) {
         @try {
             anchor = [cell convertRect:bFrame toView:window];
         } @catch (NSException *e) {}
@@ -1012,6 +1029,29 @@ static id findMediaInController(UIViewController *ctrl) {
 }
 
 + (void)showEditHistoryForMessage:(id)message badgeFrame:(CGRect)badgeFrame inWindow:(UIWindow *)targetWindow {
+    NSMutableDictionary *data = [NSMutableDictionary dictionary];
+    @try {
+        NSString *sid = watweak_getStanzaIdFromMessage(message);
+        if (sid) {
+            NSString *orig = watweak_getOriginalTextForStanzaID(sid);
+            if (orig) data[@"origText"] = orig;
+            NSDate *ed = watweak_getEditDateForStanzaID(sid);
+            if (ed) data[@"editDate"] = ed;
+        }
+        if ([message respondsToSelector:@selector(text)]) {
+            NSString *cur = [message text];
+            if (cur) data[@"currentText"] = cur;
+        }
+        if ([message respondsToSelector:@selector(messageDate)]) {
+            id md = [message performSelector:@selector(messageDate)];
+            if ([md isKindOfClass:[NSDate class]]) data[@"origDate"] = md;
+        }
+    } @catch (NSException *e) {}
+
+    [self showEditHistoryWithData:data anchorFrame:badgeFrame inWindow:targetWindow];
+}
+
++ (void)showEditHistoryWithData:(NSDictionary *)data anchorFrame:(CGRect)anchorFrame inWindow:(UIWindow *)targetWindow {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = targetWindow;
         if (!window) {
@@ -1029,93 +1069,13 @@ static id findMediaInController(UIViewController *ctrl) {
             [oldOverlay removeFromSuperview];
         }
 
-        NSString *sid = nil;
-        @try {
-            sid = watweak_getStanzaIdFromMessage(message);
-        } @catch (NSException *e) {}
-
-        NSString *origText = nil;
-        if (sid) {
-            origText = watweak_getOriginalTextForStanzaID(sid);
-        }
-
-        NSString *currentText = nil;
-        @try {
-            if (message && [message respondsToSelector:@selector(text)]) {
-                currentText = [message text];
-            }
-        } @catch (NSException *e) {}
+        NSString *origText = data[@"origText"];
+        NSString *currentText = data[@"currentText"];
+        NSDate *origDate = data[@"origDate"];
+        NSDate *editDate = data[@"editDate"];
 
         if (!origText || origText.length == 0) {
             origText = @"(Original message text was not captured during this session)";
-        }
-
-        // Safely extract original message date
-        NSDate *origDate = nil;
-        @try {
-            if (message && [message respondsToSelector:@selector(messageDate)]) {
-                NSMethodSignature *sig = [message methodSignatureForSelector:@selector(messageDate)];
-                if (sig) {
-                    const char *retType = [sig methodReturnType];
-                    if (retType && retType[0] == '@') {
-                        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                        [inv setTarget:message];
-                        [inv setSelector:@selector(messageDate)];
-                        [inv invoke];
-                        __unsafe_unretained id retObj = nil;
-                        [inv getReturnValue:&retObj];
-                        if ([retObj isKindOfClass:[NSDate class]]) origDate = (NSDate *)retObj;
-                    } else if (retType && (retType[0] == 'd' || retType[0] == 'f')) {
-                        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                        [inv setTarget:message];
-                        [inv setSelector:@selector(messageDate)];
-                        [inv invoke];
-                        double dVal = 0.0;
-                        [inv getReturnValue:&dVal];
-                        if (dVal > 0.0) origDate = [NSDate dateWithTimeIntervalSince1970:dVal];
-                    }
-                }
-            }
-        } @catch (NSException *e) {}
-
-        // Safely extract edit date
-        NSDate *editDate = nil;
-        if (sid) {
-            editDate = watweak_getEditDateForStanzaID(sid);
-        }
-        if (!editDate) {
-            @try {
-                SEL sel = NULL;
-                if (message && [message respondsToSelector:@selector(lastEditTimestamp)]) {
-                    sel = @selector(lastEditTimestamp);
-                } else if (message && [message respondsToSelector:@selector(latestEditTimestamp)]) {
-                    sel = @selector(latestEditTimestamp);
-                }
-                if (sel) {
-                    NSMethodSignature *sig = [message methodSignatureForSelector:sel];
-                    if (sig) {
-                        const char *retType = [sig methodReturnType];
-                        if (retType && retType[0] == '@') {
-                            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                            [inv setTarget:message];
-                            [inv setSelector:sel];
-                            [inv invoke];
-                            __unsafe_unretained id retObj = nil;
-                            [inv getReturnValue:&retObj];
-                            if ([retObj isKindOfClass:[NSDate class]]) editDate = (NSDate *)retObj;
-                            else if ([retObj isKindOfClass:[NSNumber class]]) editDate = [NSDate dateWithTimeIntervalSince1970:[retObj doubleValue]];
-                        } else if (retType && (retType[0] == 'd' || retType[0] == 'f')) {
-                            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                            [inv setTarget:message];
-                            [inv setSelector:sel];
-                            [inv invoke];
-                            double dVal = 0.0;
-                            [inv getReturnValue:&dVal];
-                            if (dVal > 0.0) editDate = [NSDate dateWithTimeIntervalSince1970:dVal];
-                        }
-                    }
-                }
-            } @catch (NSException *e) {}
         }
 
         NSDateFormatter *df = [[NSDateFormatter alloc] init];
@@ -1143,7 +1103,7 @@ static id findMediaInController(UIViewController *ctrl) {
 
         UIView *backdrop = [[UIView alloc] initWithFrame:window.bounds];
         backdrop.tag = 998898;
-        backdrop.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.40];
+        backdrop.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.35];
         backdrop.alpha = 0.0;
         backdrop.userInteractionEnabled = YES;
 
@@ -1168,13 +1128,13 @@ static id findMediaInController(UIViewController *ctrl) {
         if (contentH > maxH) contentH = maxH;
         if (contentH < 50.0) contentH = 50.0;
 
-        CGFloat cardX = badgeFrame.origin.x;
+        CGFloat cardX = anchorFrame.origin.x;
         if (cardX + cardW > screenW - 12.0) cardX = screenW - cardW - 12.0;
         if (cardX < 12.0) cardX = 12.0;
 
-        CGFloat cardY = badgeFrame.origin.y - contentH - 8.0;
+        CGFloat cardY = anchorFrame.origin.y - contentH - 8.0;
         if (cardY < 60.0) {
-            cardY = CGRectGetMaxY(badgeFrame) + 8.0;
+            cardY = CGRectGetMaxY(anchorFrame) + 8.0;
         }
         if (cardY + contentH > screenH - 40.0) {
             cardY = screenH - contentH - 40.0;
