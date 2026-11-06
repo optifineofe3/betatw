@@ -7,6 +7,8 @@ extern "C" {
 NSString *watweak_getStanzaIdFromMessage(id msg);
 NSString *watweak_getOriginalTextForStanzaID(NSString *sid);
 NSDate *watweak_getEditDateForStanzaID(NSString *sid);
+NSArray<NSDictionary *> *watweak_getEditChainForStanzaID(NSString *sid);
+void watweak_recordEditForStanzaID(NSString *sid, NSString *text, NSDate *date, BOOL isOriginal);
 void watweak_saveOriginalTextForStanzaID(NSString *sid, NSString *origText, NSDate *editDate);
 void watweak_cacheInitialTextForStanzaID(NSString *sid, NSString *text);
 

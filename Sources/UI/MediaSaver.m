@@ -253,60 +253,112 @@ static UIImage *downloadIconImage(void) {
 
 static id safeInvokeGetter(id obj, NSString *selectorName) {
     if (!obj || !selectorName) return nil;
-    SEL sel = NSSelectorFromString(selectorName);
-    if ([obj respondsToSelector:sel]) {
-        IMP imp = [obj methodForSelector:sel];
-        id (*func)(id, SEL) = (id (*)(id, SEL))imp;
-        return func(obj, sel);
+    if ((uintptr_t)obj < 0x10000) return nil;
+    @try {
+        SEL sel = NSSelectorFromString(selectorName);
+        if (![obj respondsToSelector:sel]) return nil;
+        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
+        if (!sig || [sig numberOfArguments] != 2) return nil;
+        const char *retType = [sig methodReturnType];
+        if (!retType || retType[0] != '@') return nil;
+        
+        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+        [inv setTarget:obj];
+        [inv setSelector:sel];
+        [inv invoke];
+        void *retVal = NULL;
+        [inv getReturnValue:&retVal];
+        if (!retVal || (uintptr_t)retVal < 0x10000) return nil;
+        return (__bridge id)retVal;
+    } @catch (NSException *e) {
+        return nil;
     }
-    return nil;
 }
 
 static BOOL safeInvokeBool(id obj, NSString *selectorName) {
     if (!obj || !selectorName) return NO;
-    SEL sel = NSSelectorFromString(selectorName);
-    if ([obj respondsToSelector:sel]) {
-        IMP imp = [obj methodForSelector:sel];
-        BOOL (*func)(id, SEL) = (BOOL (*)(id, SEL))imp;
-        return func(obj, sel);
+    if ((uintptr_t)obj < 0x10000) return NO;
+    @try {
+        SEL sel = NSSelectorFromString(selectorName);
+        if (![obj respondsToSelector:sel]) return NO;
+        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
+        if (!sig || [sig numberOfArguments] != 2) return NO;
+        const char *retType = [sig methodReturnType];
+        if (!retType) return NO;
+        if (retType[0] == 'c' || retType[0] == 'B' || retType[0] == 'i' || retType[0] == 'q' || retType[0] == 's') {
+            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+            [inv setTarget:obj];
+            [inv setSelector:sel];
+            [inv invoke];
+            long long val = 0;
+            [inv getReturnValue:&val];
+            return val != 0;
+        }
+        return NO;
+    } @catch (NSException *e) {
+        return NO;
     }
-    return NO;
 }
 
 static NSUInteger safeInvokeInteger(id obj, NSString *selectorName) {
     if (!obj || !selectorName) return 0;
-    SEL sel = NSSelectorFromString(selectorName);
-    if ([obj respondsToSelector:sel]) {
-        IMP imp = [obj methodForSelector:sel];
-        NSUInteger (*func)(id, SEL) = (NSUInteger (*)(id, SEL))imp;
-        return func(obj, sel);
+    if ((uintptr_t)obj < 0x10000) return 0;
+    @try {
+        SEL sel = NSSelectorFromString(selectorName);
+        if (![obj respondsToSelector:sel]) return 0;
+        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
+        if (!sig || [sig numberOfArguments] != 2) return 0;
+        const char *retType = [sig methodReturnType];
+        if (!retType) return 0;
+        if (retType[0] == 'i' || retType[0] == 'q' || retType[0] == 'I' || retType[0] == 'Q' || retType[0] == 'l' || retType[0] == 'L' || retType[0] == 's' || retType[0] == 'c' || retType[0] == 'B') {
+            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+            [inv setTarget:obj];
+            [inv setSelector:sel];
+            [inv invoke];
+            NSUInteger val = 0;
+            [inv getReturnValue:&val];
+            return val;
+        }
+        return 0;
+    } @catch (NSException *e) {
+        return 0;
     }
-    return 0;
 }
 
 static NSString *extractVideoPathFromAnyObject(id obj) {
     if (!obj) return nil;
+    if ((uintptr_t)obj < 0x10000) return nil;
     
-    // Check known URL and path getters / properties
-    NSArray *selectors = @[
-        @"assetURL", @"_assetURL",
-        @"cachedMediaActivityItemURL", @"_cachedMediaActivityItemURL",
-        @"mediaFilePath", @"_mediaFilePath",
-        @"plaintextFilePath", @"_plaintextFilePath",
-        @"videoURL", @"fileURL", @"mediaURL", @"contentURL", @"streamingURL",
-        @"wa_fileURL", @"mediaLocalPath", @"path", @"fullPath", @"filePath", @"originalMediaLocalPath"
-    ];
-    
-    for (NSString *sel in selectors) {
-        id val = safeInvokeGetter(obj, sel);
-        if (!val) {
-            @try { val = [obj valueForKey:sel]; } @catch (NSException *e) {}
-        }
-        if (val) {
-            if ([val isKindOfClass:[NSURL class]]) {
-                NSURL *u = (NSURL *)val;
-                if (u.path) {
-                    NSString *resolved = resolveExistingFilePath(u.path);
+    @try {
+        // Check known URL and path getters / properties
+        NSArray *selectors = @[
+            @"assetURL", @"_assetURL",
+            @"cachedMediaActivityItemURL", @"_cachedMediaActivityItemURL",
+            @"mediaFilePath", @"_mediaFilePath",
+            @"plaintextFilePath", @"_plaintextFilePath",
+            @"videoURL", @"fileURL", @"mediaURL", @"contentURL", @"streamingURL",
+            @"wa_fileURL", @"mediaLocalPath", @"path", @"fullPath", @"filePath", @"originalMediaLocalPath"
+        ];
+        
+        for (NSString *sel in selectors) {
+            id val = safeInvokeGetter(obj, sel);
+            if (!val) {
+                @try { val = [obj valueForKey:sel]; } @catch (NSException *e) {}
+            }
+            if (val) {
+                if ([val isKindOfClass:[NSURL class]]) {
+                    NSURL *u = (NSURL *)val;
+                    if (u.path) {
+                        NSString *resolved = resolveExistingFilePath(u.path);
+                        if (resolved) {
+                            NSString *ext = [[resolved pathExtension] lowercaseString];
+                            if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
+                                return resolved;
+                            }
+                        }
+                    }
+                } else if ([val isKindOfClass:[NSString class]]) {
+                    NSString *resolved = resolveExistingFilePath((NSString *)val);
                     if (resolved) {
                         NSString *ext = [[resolved pathExtension] lowercaseString];
                         if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
@@ -314,49 +366,16 @@ static NSString *extractVideoPathFromAnyObject(id obj) {
                         }
                     }
                 }
-            } else if ([val isKindOfClass:[NSString class]]) {
-                NSString *resolved = resolveExistingFilePath((NSString *)val);
-                if (resolved) {
-                    NSString *ext = [[resolved pathExtension] lowercaseString];
-                    if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"]) {
-                        return resolved;
-                    }
-                }
             }
         }
-    }
-    
-    // Check AVAsset / AVURLAsset
-    for (NSString *sel in @[@"asset", @"_asset"]) {
-        id asset = safeInvokeGetter(obj, sel);
-        if (!asset) {
-            @try { asset = [obj valueForKey:sel]; } @catch (NSException *e) {}
-        }
-        if (asset) {
-            if ([asset isKindOfClass:[AVURLAsset class]]) {
-                NSURL *u = [(AVURLAsset *)asset URL];
-                if (u.path) {
-                    NSString *resolved = resolveExistingFilePath(u.path);
-                    if (resolved) return resolved;
-                }
+        
+        // Check AVAsset / AVURLAsset
+        for (NSString *sel in @[@"asset", @"_asset"]) {
+            id asset = safeInvokeGetter(obj, sel);
+            if (!asset) {
+                @try { asset = [obj valueForKey:sel]; } @catch (NSException *e) {}
             }
-            id uObj = safeInvokeGetter(asset, @"URL");
-            if (uObj && [uObj isKindOfClass:[NSURL class]]) {
-                NSString *resolved = resolveExistingFilePath(((NSURL *)uObj).path);
-                if (resolved) return resolved;
-            }
-        }
-    }
-    
-    // Check AVPlayerItem
-    for (NSString *sel in @[@"currentItem", @"playerItem", @"_playerItem"]) {
-        id item = safeInvokeGetter(obj, sel);
-        if (!item) {
-            @try { item = [obj valueForKey:sel]; } @catch (NSException *e) {}
-        }
-        if (item) {
-            id asset = safeInvokeGetter(item, @"asset");
-            if (asset) {
+            if (asset && [asset isKindOfClass:[AVAsset class]]) {
                 if ([asset isKindOfClass:[AVURLAsset class]]) {
                     NSURL *u = [(AVURLAsset *)asset URL];
                     if (u.path) {
@@ -371,98 +390,86 @@ static NSString *extractVideoPathFromAnyObject(id obj) {
                 }
             }
         }
-    }
-    
-    // Check sub-player objects
-    for (NSString *sel in @[@"mediaPlayer", @"_mediaPlayer", @"playerView", @"_playerView", @"player", @"_player", @"playbackController", @"videoPlayer"]) {
-        id sub = safeInvokeGetter(obj, sel);
-        if (!sub) {
-            @try { sub = [obj valueForKey:sel]; } @catch (NSException *e) {}
-        }
-        if (sub && sub != obj) {
-            NSString *p = extractVideoPathFromAnyObject(sub);
-            if (p) return p;
-        }
-    }
-    
-    return nil;
-}
-
-static NSString *findVideoPathInViewHierarchy(UIView *view) {
-    if (!view) return nil;
-    
-    // 1. Direct object inspection
-    NSString *p = extractVideoPathFromAnyObject(view);
-    if (p) return p;
-    
-    // 2. Layer inspection
-    if (view.layer) {
-        p = extractVideoPathFromAnyObject(view.layer);
-        if (p) return p;
-        for (CALayer *sub in view.layer.sublayers) {
-            p = extractVideoPathFromAnyObject(sub);
-            if (p) return p;
-        }
-    }
-    
-    // 3. Ivars inspection of custom cells and player views
-    unsigned int count = 0;
-    Ivar *ivars = class_copyIvarList([view class], &count);
-    if (ivars) {
-        for (unsigned int i = 0; i < count; i++) {
-            const char *name = ivar_getName(ivars[i]);
-            if (name && (strstr(name, "player") || strstr(name, "Player") ||
-                         strstr(name, "asset") || strstr(name, "Asset") ||
-                         strstr(name, "video") || strstr(name, "Video") ||
-                         strstr(name, "media") || strstr(name, "Media"))) {
-                id val = object_getIvar(view, ivars[i]);
-                if (val && val != view) {
-                    p = extractVideoPathFromAnyObject(val);
-                    if (p) {
-                        free(ivars);
-                        return p;
+        
+        // Check AVPlayerItem
+        for (NSString *sel in @[@"currentItem", @"playerItem", @"_playerItem"]) {
+            id item = safeInvokeGetter(obj, sel);
+            if (!item) {
+                @try { item = [obj valueForKey:sel]; } @catch (NSException *e) {}
+            }
+            if (item && [item isKindOfClass:[AVPlayerItem class]]) {
+                id asset = safeInvokeGetter(item, @"asset");
+                if (asset) {
+                    if ([asset isKindOfClass:[AVURLAsset class]]) {
+                        NSURL *u = [(AVURLAsset *)asset URL];
+                        if (u.path) {
+                            NSString *resolved = resolveExistingFilePath(u.path);
+                            if (resolved) return resolved;
+                        }
+                    }
+                    id uObj = safeInvokeGetter(asset, @"URL");
+                    if (uObj && [uObj isKindOfClass:[NSURL class]]) {
+                        NSString *resolved = resolveExistingFilePath(((NSURL *)uObj).path);
+                        if (resolved) return resolved;
                     }
                 }
             }
         }
-        free(ivars);
-    }
-    
-    // 4. Subviews recursion
-    for (UIView *sub in view.subviews) {
-        p = findVideoPathInViewHierarchy(sub);
-        if (p) return p;
-    }
+        
+        // Check sub-player objects
+        for (NSString *sel in @[@"mediaPlayer", @"_mediaPlayer", @"playerView", @"_playerView", @"player", @"_player", @"playbackController", @"videoPlayer"]) {
+            id sub = safeInvokeGetter(obj, sel);
+            if (!sub) {
+                @try { sub = [obj valueForKey:sel]; } @catch (NSException *e) {}
+            }
+            if (sub && sub != obj) {
+                NSString *p = extractVideoPathFromAnyObject(sub);
+                if (p) return p;
+            }
+        }
+    } @catch (NSException *e) {}
     
     return nil;
 }
 
-static NSString *findVideoPathInControllerHierarchy(UIViewController *ctrl) {
-    if (!ctrl) return nil;
+static NSString *findVideoPathInViewHierarchyHelper(UIView *view, NSHashTable *visited, int depth) {
+    if (!view || depth > 10) return nil;
+    if ([visited containsObject:view]) return nil;
+    [visited addObject:view];
     
-    // 1. Controller itself
-    NSString *p = extractVideoPathFromAnyObject(ctrl);
-    if (p) return p;
-    
-    // 2. Controller ivars (e.g. protectedViewController, message, player)
-    unsigned int count = 0;
-    Ivar *ivars = class_copyIvarList([ctrl class], &count);
-    if (ivars) {
-        for (unsigned int i = 0; i < count; i++) {
-            const char *name = ivar_getName(ivars[i]);
-            if (name && (strstr(name, "player") || strstr(name, "Player") ||
-                         strstr(name, "video") || strstr(name, "Video") ||
-                         strstr(name, "protectedViewController") ||
-                         strstr(name, "message") || strstr(name, "Message"))) {
-                id val = object_getIvar(ctrl, ivars[i]);
-                if (val && val != ctrl) {
-                    p = extractVideoPathFromAnyObject(val);
-                    if (p) {
-                        free(ivars);
-                        return p;
-                    }
-                    if ([val isKindOfClass:[UIViewController class]]) {
-                        p = findVideoPathInControllerHierarchy((UIViewController *)val);
+    @try {
+        // 1. Direct object inspection
+        NSString *p = extractVideoPathFromAnyObject(view);
+        if (p) return p;
+        
+        // 2. Layer inspection
+        if (view.layer) {
+            p = extractVideoPathFromAnyObject(view.layer);
+            if (p) return p;
+            NSArray *sublayers = [view.layer.sublayers copy];
+            for (CALayer *sub in sublayers) {
+                p = extractVideoPathFromAnyObject(sub);
+                if (p) return p;
+            }
+        }
+        
+        // 3. Ivars inspection of custom cells and player views
+        unsigned int count = 0;
+        Ivar *ivars = class_copyIvarList([view class], &count);
+        if (ivars) {
+            for (unsigned int i = 0; i < count; i++) {
+                const char *name = ivar_getName(ivars[i]);
+                const char *type = ivar_getTypeEncoding(ivars[i]);
+                if (!type || (type[0] != '@' && type[0] != '#')) continue;
+                
+                if (name && (strstr(name, "player") || strstr(name, "Player") ||
+                             strstr(name, "asset") || strstr(name, "Asset") ||
+                             strstr(name, "video") || strstr(name, "Video") ||
+                             strstr(name, "media") || strstr(name, "Media"))) {
+                    id val = object_getIvar(view, ivars[i]);
+                    if (val && val != view && ![visited containsObject:val]) {
+                        [visited addObject:val];
+                        p = extractVideoPathFromAnyObject(val);
                         if (p) {
                             free(ivars);
                             return p;
@@ -470,29 +477,98 @@ static NSString *findVideoPathInControllerHierarchy(UIViewController *ctrl) {
                     }
                 }
             }
+            free(ivars);
         }
-        free(ivars);
-    }
-    
-    // 3. View hierarchy
-    if (ctrl.isViewLoaded) {
-        p = findVideoPathInViewHierarchy(ctrl.view);
-        if (p) return p;
-    }
-    
-    // 4. Child view controllers
-    for (UIViewController *child in ctrl.childViewControllers) {
-        p = findVideoPathInControllerHierarchy(child);
-        if (p) return p;
-    }
-    
-    // 5. Parent view controller
-    if (ctrl.parentViewController) {
-        p = extractVideoPathFromAnyObject(ctrl.parentViewController);
-        if (p) return p;
-    }
+        
+        // 4. Subviews recursion
+        NSArray *subviews = [view.subviews copy];
+        for (UIView *sub in subviews) {
+            p = findVideoPathInViewHierarchyHelper(sub, visited, depth + 1);
+            if (p) return p;
+        }
+    } @catch (NSException *e) {}
     
     return nil;
+}
+
+static NSString *findVideoPathInViewHierarchy(UIView *view) {
+    if (!view) return nil;
+    NSHashTable *visited = [NSHashTable weakObjectsHashTable];
+    return findVideoPathInViewHierarchyHelper(view, visited, 0);
+}
+
+static NSString *findVideoPathInControllerHierarchyHelper(UIViewController *ctrl, NSHashTable *visited, int depth) {
+    if (!ctrl || depth > 8) return nil;
+    if ([visited containsObject:ctrl]) return nil;
+    [visited addObject:ctrl];
+    
+    @try {
+        // 1. Controller itself
+        NSString *p = extractVideoPathFromAnyObject(ctrl);
+        if (p) return p;
+        
+        // 2. Controller ivars (e.g. protectedViewController, message, player)
+        unsigned int count = 0;
+        Ivar *ivars = class_copyIvarList([ctrl class], &count);
+        if (ivars) {
+            for (unsigned int i = 0; i < count; i++) {
+                const char *name = ivar_getName(ivars[i]);
+                const char *type = ivar_getTypeEncoding(ivars[i]);
+                if (!type || (type[0] != '@' && type[0] != '#')) continue;
+                
+                if (name && (strstr(name, "player") || strstr(name, "Player") ||
+                             strstr(name, "video") || strstr(name, "Video") ||
+                             strstr(name, "protectedViewController") ||
+                             strstr(name, "message") || strstr(name, "Message"))) {
+                    id val = object_getIvar(ctrl, ivars[i]);
+                    if (val && val != ctrl && ![visited containsObject:val]) {
+                        [visited addObject:val];
+                        p = extractVideoPathFromAnyObject(val);
+                        if (p) {
+                            free(ivars);
+                            return p;
+                        }
+                        if ([val isKindOfClass:[UIViewController class]]) {
+                            p = findVideoPathInControllerHierarchyHelper((UIViewController *)val, visited, depth + 1);
+                            if (p) {
+                                free(ivars);
+                                return p;
+                            }
+                        }
+                    }
+                }
+            }
+            free(ivars);
+        }
+        
+        // 3. View hierarchy
+        if (ctrl.isViewLoaded) {
+            p = findVideoPathInViewHierarchy(ctrl.view);
+            if (p) return p;
+        }
+        
+        // 4. Child view controllers
+        NSArray *children = [ctrl.childViewControllers copy];
+        for (UIViewController *child in children) {
+            p = findVideoPathInControllerHierarchyHelper(child, visited, depth + 1);
+            if (p) return p;
+        }
+        
+        // 5. Parent view controller
+        if (ctrl.parentViewController && ![visited containsObject:ctrl.parentViewController]) {
+            [visited addObject:ctrl.parentViewController];
+            p = extractVideoPathFromAnyObject(ctrl.parentViewController);
+            if (p) return p;
+        }
+    } @catch (NSException *e) {}
+    
+    return nil;
+}
+
+static NSString *findVideoPathInControllerHierarchy(UIViewController *ctrl) {
+    if (!ctrl) return nil;
+    NSHashTable *visited = [NSHashTable weakObjectsHashTable];
+    return findVideoPathInControllerHierarchyHelper(ctrl, visited, 0);
 }
 
 static NSString *findRecentVideoFile(void) {
@@ -570,21 +646,33 @@ static BOOL isVideoContext(UIViewController *ctrl, id msg) {
     return NO;
 }
 
+static void scanViewsRecursivelyHelper(UIView *v, NSHashTable *visited, int depth, void (^imageBlock)(UIImage *), void (^layerBlock)(CGImageRef)) {
+    if (!v || depth > 10) return;
+    if ([visited containsObject:v]) return;
+    [visited addObject:v];
+    
+    @try {
+        if ([v isKindOfClass:[UIImageView class]]) {
+            UIImage *img = [(UIImageView *)v image];
+            if (img) imageBlock(img);
+        }
+        if (v.layer && v.layer.contents) {
+            id contents = v.layer.contents;
+            if (CFGetTypeID((__bridge CFTypeRef)contents) == CGImageGetTypeID()) {
+                layerBlock((__bridge CGImageRef)contents);
+            }
+        }
+        NSArray *subviews = [v.subviews copy];
+        for (UIView *sub in subviews) {
+            scanViewsRecursivelyHelper(sub, visited, depth + 1, imageBlock, layerBlock);
+        }
+    } @catch (NSException *e) {}
+}
+
 static void scanViewsRecursively(UIView *v, void (^imageBlock)(UIImage *), void (^layerBlock)(CGImageRef)) {
     if (!v) return;
-    if ([v isKindOfClass:[UIImageView class]]) {
-        UIImage *img = [(UIImageView *)v image];
-        if (img) imageBlock(img);
-    }
-    if (v.layer && v.layer.contents) {
-        id contents = v.layer.contents;
-        if (CFGetTypeID((__bridge CFTypeRef)contents) == CGImageGetTypeID()) {
-            layerBlock((__bridge CGImageRef)contents);
-        }
-    }
-    for (UIView *sub in v.subviews) {
-        scanViewsRecursively(sub, imageBlock, layerBlock);
-    }
+    NSHashTable *visited = [NSHashTable weakObjectsHashTable];
+    scanViewsRecursivelyHelper(v, visited, 0, imageBlock, layerBlock);
 }
 
 + (UIImage *)findImageInView:(UIView *)view {
@@ -1037,6 +1125,8 @@ static id findMediaInController(UIViewController *ctrl) {
             if (orig) data[@"origText"] = orig;
             NSDate *ed = watweak_getEditDateForStanzaID(sid);
             if (ed) data[@"editDate"] = ed;
+            NSArray *chain = watweak_getEditChainForStanzaID(sid);
+            if (chain && chain.count > 0) data[@"chain"] = chain;
         }
         if ([message respondsToSelector:@selector(text)]) {
             NSString *cur = [message text];
@@ -1045,6 +1135,18 @@ static id findMediaInController(UIViewController *ctrl) {
         if ([message respondsToSelector:@selector(messageDate)]) {
             id md = [message performSelector:@selector(messageDate)];
             if ([md isKindOfClass:[NSDate class]]) data[@"origDate"] = md;
+        }
+        if (!data[@"editDate"]) {
+            for (NSString *sel in @[@"latestEditTimestamp", @"lastEditTimestamp"]) {
+                if ([message respondsToSelector:NSSelectorFromString(sel)]) {
+                    id d = [message performSelector:NSSelectorFromString(sel)];
+                    if ([d isKindOfClass:[NSDate class]]) { data[@"editDate"] = d; break; }
+                    else if ([d isKindOfClass:[NSNumber class]] && [d doubleValue] > 0) {
+                        data[@"editDate"] = [NSDate dateWithTimeIntervalSince1970:[d doubleValue]];
+                        break;
+                    }
+                }
+            }
         }
     } @catch (NSException *e) {}
 
@@ -1069,35 +1171,109 @@ static id findMediaInController(UIViewController *ctrl) {
             [oldOverlay removeFromSuperview];
         }
 
+        NSArray *rawChain = data[@"chain"];
         NSString *origText = data[@"origText"];
         NSString *currentText = data[@"currentText"];
         NSDate *origDate = data[@"origDate"];
         NSDate *editDate = data[@"editDate"];
 
-        if (!origText || origText.length == 0) {
-            origText = @"(Original message text was not captured during this session)";
-        }
-
         NSDateFormatter *df = [[NSDateFormatter alloc] init];
         df.dateFormat = @"HH:mm:ss";
 
+        NSMutableArray<NSMutableDictionary *> *chain = [NSMutableArray array];
+        if ([rawChain isKindOfClass:[NSArray class]] && rawChain.count > 0) {
+            for (id item in rawChain) {
+                if ([item isKindOfClass:[NSDictionary class]]) {
+                    [chain addObject:[item mutableCopy]];
+                }
+            }
+        }
+
+        // If chain is empty or incomplete, construct from origText and currentText
+        if (chain.count == 0) {
+            if (origText && origText.length > 0) {
+                [chain addObject:[@{
+                    @"text": origText,
+                    @"date": origDate ?: (editDate ? [NSDate dateWithTimeInterval:-60 sinceDate:editDate] : [NSDate dateWithTimeIntervalSinceNow:-60])
+                } mutableCopy]];
+            }
+            if (currentText && currentText.length > 0 && ![currentText isEqualToString:origText]) {
+                [chain addObject:[@{
+                    @"text": currentText,
+                    @"date": editDate ?: [NSDate date]
+                } mutableCopy]];
+            }
+        } else {
+            // Ensure first item matches original text if known and not already first
+            if (origText && origText.length > 0 && ![origText hasPrefix:@"("]) {
+                NSString *firstText = chain.firstObject[@"text"];
+                if (![firstText isEqualToString:origText]) {
+                    NSDate *firstDate = [chain.firstObject[@"date"] isKindOfClass:[NSDate class]] ? chain.firstObject[@"date"] : (editDate ?: [NSDate date]);
+                    [chain insertObject:[@{
+                        @"text": origText,
+                        @"date": origDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:firstDate]
+                    } mutableCopy] atIndex:0];
+                }
+            }
+            // Ensure last item matches currentText if known and not already last
+            if (currentText && currentText.length > 0) {
+                NSString *lastText = chain.lastObject[@"text"];
+                if (![lastText isEqualToString:currentText]) {
+                    [chain addObject:[@{
+                        @"text": currentText,
+                        @"date": editDate ?: [NSDate date]
+                    } mutableCopy]];
+                }
+            }
+        }
+
+        // Fallback if still empty
+        if (chain.count == 0) {
+            [chain addObject:[@{
+                @"text": currentText ?: (origText ?: @"(Original message text was not captured during this session)"),
+                @"date": editDate ?: (origDate ?: [NSDate date])
+            } mutableCopy]];
+        }
+
+        // Build display history entries matching Telegram sequence:
+        // Original message -> Edit 1 -> Edit 2 -> ... -> Current edited message
         NSMutableArray *history = [NSMutableArray array];
+        NSUInteger total = chain.count;
 
-        // 1. Original message entry
-        NSString *origTimeStr = origDate ? [NSString stringWithFormat:@"[%@]", [df stringFromDate:origDate]] : @"[--:--:--]";
-        [history addObject:@{
-            @"badge": origTimeStr,
-            @"label": @"Original message",
-            @"text": origText
-        }];
+        for (NSUInteger idx = 0; idx < total; idx++) {
+            NSDictionary *item = chain[idx];
+            NSString *bodyStr = item[@"text"] ?: @"";
+            
+            // Resolve real timestamp:
+            NSDate *itemDate = item[@"date"];
+            if (![itemDate isKindOfClass:[NSDate class]]) {
+                if (idx == 0) {
+                    itemDate = origDate ?: (editDate ? [NSDate dateWithTimeInterval:-60 * (total - 1) sinceDate:editDate] : [NSDate dateWithTimeIntervalSinceNow:-60]);
+                } else if (idx == total - 1) {
+                    itemDate = editDate ?: [NSDate date];
+                } else {
+                    NSTimeInterval step = 30.0;
+                    NSDate *base = editDate ?: [NSDate date];
+                    itemDate = [NSDate dateWithTimeInterval:-step * (total - 1 - idx) sinceDate:base];
+                }
+            }
+            NSString *timeBadge = [NSString stringWithFormat:@"[%@]", [df stringFromDate:itemDate]];
 
-        // 2. Edited message entry
-        if (currentText && currentText.length > 0 && ![currentText isEqualToString:origText]) {
-            NSString *editTimeStr = editDate ? [NSString stringWithFormat:@"[%@]", [df stringFromDate:editDate]] : @"[--:--:--]";
+            NSString *labelStr = nil;
+            if (idx == 0) {
+                labelStr = (total > 1) ? @"Original message" : @"Message text";
+            } else if (idx == total - 1 && total > 1) {
+                labelStr = @"Current edited message";
+            } else if (total > 2) {
+                labelStr = [NSString stringWithFormat:@"Edit %lu", (unsigned long)idx];
+            } else {
+                labelStr = @"Edited message";
+            }
+
             [history addObject:@{
-                @"badge": editTimeStr,
-                @"label": @"Edited message",
-                @"text": currentText
+                @"badge": timeBadge,
+                @"label": labelStr,
+                @"text": bodyStr
             }];
         }
 

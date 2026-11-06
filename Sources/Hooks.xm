@@ -217,10 +217,14 @@ static NSMutableSet<NSString *> *sWATweakDeletedStanzaIDs = nil;
 static NSMutableDictionary<NSString *, NSString *> *sWATweakOriginalTexts = nil;
 static NSMutableDictionary<NSString *, NSString *> *sWATweakEditedTexts = nil;
 static NSMutableDictionary<NSString *, NSDate *> *sWATweakEditDates = nil;
+static NSMutableDictionary<NSString *, NSMutableArray<NSDictionary *> *> *sWATweakEditChains = nil;
+static dispatch_queue_t sWATweakPersistQueue = nil;
 
 static void watweak_initEditStorageIfNeeded(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        sWATweakPersistQueue = dispatch_queue_create("com.watweak.editpersist", DISPATCH_QUEUE_SERIAL);
+
         NSDictionary *savedOrig = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"WATweakOriginalTexts"];
         sWATweakOriginalTexts = savedOrig ? [savedOrig mutableCopy] : [NSMutableDictionary dictionary];
 
@@ -228,7 +232,175 @@ static void watweak_initEditStorageIfNeeded(void) {
         sWATweakEditedTexts = savedEdited ? [savedEdited mutableCopy] : [NSMutableDictionary dictionary];
 
         sWATweakEditDates = [NSMutableDictionary dictionary];
+
+        NSDictionary *savedChains = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"WATweakEditChains_v1"];
+        sWATweakEditChains = [NSMutableDictionary dictionary];
+        if (savedChains) {
+            for (NSString *key in savedChains) {
+                NSArray *arr = savedChains[key];
+                if ([arr isKindOfClass:[NSArray class]]) {
+                    NSMutableArray *mutArr = [NSMutableArray arrayWithCapacity:arr.count];
+                    for (id item in arr) {
+                        if ([item isKindOfClass:[NSDictionary class]]) {
+                            NSMutableDictionary *entry = [item mutableCopy];
+                            id dVal = entry[@"date"];
+                            if ([dVal isKindOfClass:[NSNumber class]]) {
+                                entry[@"date"] = [NSDate dateWithTimeIntervalSince1970:[dVal doubleValue]];
+                            }
+                            [mutArr addObject:entry];
+                        }
+                    }
+                    sWATweakEditChains[key] = mutArr;
+                }
+            }
+        }
     });
+}
+
+static void watweak_schedulePersistEditChains(void) {
+    watweak_initEditStorageIfNeeded();
+    static BOOL sPersistScheduled = NO;
+    if (sPersistScheduled) return;
+    sPersistScheduled = YES;
+
+    dispatch_queue_t q = sWATweakPersistQueue ?: dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), q, ^{
+        sPersistScheduled = NO;
+        NSMutableDictionary *dictToSave = [NSMutableDictionary dictionary];
+        @synchronized(sWATweakEditChains) {
+            if (sWATweakEditChains.count > 3000) {
+                NSArray *keys = [sWATweakEditChains allKeys];
+                for (NSUInteger i = 0; i < 500 && i < keys.count; i++) {
+                    [sWATweakEditChains removeObjectForKey:keys[i]];
+                }
+            }
+            for (NSString *sid in sWATweakEditChains) {
+                NSArray *chain = sWATweakEditChains[sid];
+                NSMutableArray *serialized = [NSMutableArray arrayWithCapacity:chain.count];
+                for (NSDictionary *item in chain) {
+                    NSString *txt = item[@"text"] ?: @"";
+                    NSDate *dt = item[@"date"];
+                    NSTimeInterval ts = [dt isKindOfClass:[NSDate class]] ? [dt timeIntervalSince1970] : [[NSDate date] timeIntervalSince1970];
+                    [serialized addObject:@{
+                        @"text": txt,
+                        @"date": @(ts)
+                    }];
+                }
+                dictToSave[sid] = serialized;
+            }
+        }
+        [[NSUserDefaults standardUserDefaults] setObject:dictToSave forKey:@"WATweakEditChains_v1"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+    });
+}
+
+extern "C" void watweak_recordEditForStanzaID(NSString *sid, NSString *text, NSDate *date, BOOL isOriginal) {
+    if (!sid || sid.length == 0 || !text || text.length == 0) return;
+    watweak_initEditStorageIfNeeded();
+    
+    @synchronized(sWATweakEditChains) {
+        NSMutableArray<NSDictionary *> *chain = sWATweakEditChains[sid];
+        if (!chain) {
+            chain = [NSMutableArray array];
+            sWATweakEditChains[sid] = chain;
+        }
+
+        if (isOriginal) {
+            @synchronized(sWATweakOriginalTexts) {
+                if (!sWATweakOriginalTexts[sid]) {
+                    sWATweakOriginalTexts[sid] = [text copy];
+                    [[NSUserDefaults standardUserDefaults] setObject:sWATweakOriginalTexts forKey:@"WATweakOriginalTexts"];
+                }
+            }
+        } else {
+            if (date) {
+                @synchronized(sWATweakEditDates) {
+                    sWATweakEditDates[sid] = date;
+                }
+            }
+        }
+
+        if (chain.count == 0) {
+            if (!isOriginal) {
+                NSString *origCached = nil;
+                @synchronized(sWATweakOriginalTexts) {
+                    origCached = sWATweakOriginalTexts[sid];
+                }
+                if (!origCached) {
+                    @synchronized(sWATweakEditedTexts) {
+                        origCached = sWATweakEditedTexts[sid];
+                    }
+                }
+                if (origCached && origCached.length > 0 && ![origCached isEqualToString:text]) {
+                    NSDate *origDt = date ? [NSDate dateWithTimeInterval:-60 sinceDate:date] : [NSDate dateWithTimeIntervalSinceNow:-60];
+                    [chain addObject:@{
+                        @"text": [origCached copy],
+                        @"date": origDt
+                    }];
+                }
+            }
+            [chain addObject:@{
+                @"text": [text copy],
+                @"date": date ?: [NSDate date]
+            }];
+            watweak_schedulePersistEditChains();
+            return;
+        }
+
+        if (isOriginal) {
+            NSDictionary *first = chain.firstObject;
+            NSString *firstText = first[@"text"];
+            if ([firstText isEqualToString:text]) {
+                return;
+            }
+            BOOL existsInChain = NO;
+            for (NSDictionary *d in chain) {
+                if ([d[@"text"] isEqualToString:text]) {
+                    existsInChain = YES;
+                    break;
+                }
+            }
+            if (!existsInChain) {
+                NSDate *firstDate = [first[@"date"] isKindOfClass:[NSDate class]] ? first[@"date"] : [NSDate date];
+                NSDate *origDate = date ?: [NSDate dateWithTimeInterval:-60 sinceDate:firstDate];
+                [chain insertObject:@{
+                    @"text": [text copy],
+                    @"date": origDate
+                } atIndex:0];
+                watweak_schedulePersistEditChains();
+            }
+            return;
+        }
+
+        NSDictionary *last = [chain lastObject];
+        NSString *lastText = last[@"text"];
+        if ([lastText isEqualToString:text]) {
+            return;
+        }
+
+        [chain addObject:@{
+            @"text": [text copy],
+            @"date": date ?: [NSDate date]
+        }];
+
+        if (chain.count > 25) {
+            [chain removeObjectsInRange:NSMakeRange(0, chain.count - 25)];
+        }
+
+        watweak_schedulePersistEditChains();
+    }
+}
+
+extern "C" NSArray<NSDictionary *> *watweak_getEditChainForStanzaID(NSString *sid) {
+    if (!sid) return @[];
+    watweak_initEditStorageIfNeeded();
+    @synchronized(sWATweakEditChains) {
+        NSMutableArray *chain = sWATweakEditChains[sid];
+        if (chain) {
+            return [chain copy];
+        }
+    }
+    return @[];
 }
 
 extern "C" NSString *watweak_getStanzaIdFromMessage(id msg) {
@@ -411,16 +583,62 @@ static BOOL watweak_isMessageEdited(id msg) {
 %hook WAChatStorageMessageEditingWorker
 
 - (id)attachMessageEdit:(id)edit stanzaID:(id)stanzaID creationDate:(id)date hasExistingChatSessionTransaction:(BOOL)trans targetMessage:(id)targetMessage {
+    NSString *sid = nil;
+    NSString *prevText = nil;
+    NSDate *editDate = nil;
+    NSDate *origMsgDate = nil;
+
     @try {
+        if ([date isKindOfClass:[NSDate class]]) {
+            editDate = (NSDate *)date;
+        } else if ([date isKindOfClass:[NSNumber class]] && [date doubleValue] > 0) {
+            editDate = [NSDate dateWithTimeIntervalSince1970:[date doubleValue]];
+        } else {
+            editDate = [NSDate date];
+        }
+
         if (targetMessage) {
-            NSString *origText = [targetMessage respondsToSelector:@selector(text)] ? [targetMessage text] : nil;
-            NSString *sid = watweak_getStanzaIdFromMessage(targetMessage) ?: (NSString *)stanzaID;
-            if (sid && origText && origText.length > 0) {
-                watweak_saveOriginalTextForStanzaID(sid, origText, date);
+            sid = watweak_getStanzaIdFromMessage(targetMessage);
+            if ([targetMessage respondsToSelector:@selector(text)]) {
+                prevText = [targetMessage text];
+            }
+            if ([targetMessage respondsToSelector:@selector(messageDate)]) {
+                id md = [targetMessage messageDate];
+                if ([md isKindOfClass:[NSDate class]]) {
+                    origMsgDate = (NSDate *)md;
+                }
             }
         }
-    } @catch (NSException *e) {}
-    return %orig;
+        if (!sid && stanzaID) {
+            sid = (NSString *)stanzaID;
+        }
+
+        if (sid && prevText && prevText.length > 0) {
+            watweak_saveOriginalTextForStanzaID(sid, prevText, editDate);
+            watweak_recordEditForStanzaID(sid, prevText, origMsgDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:editDate], YES);
+        }
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception before attachMessageEdit: %@", e);
+    }
+
+    id result = %orig;
+
+    @try {
+        NSString *newText = nil;
+        if (targetMessage && [targetMessage respondsToSelector:@selector(text)]) {
+            newText = [targetMessage text];
+        }
+        if ((!newText || newText.length == 0) && edit && [edit respondsToSelector:@selector(text)]) {
+            newText = [edit text];
+        }
+        if (sid && newText && newText.length > 0 && ![newText isEqualToString:prevText]) {
+            watweak_recordEditForStanzaID(sid, newText, editDate ?: [NSDate date], NO);
+        }
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception after attachMessageEdit: %@", e);
+    }
+
+    return result;
 }
 
 %end
@@ -428,14 +646,40 @@ static BOOL watweak_isMessageEdited(id msg) {
 %hook WAMessage
 
 - (void)applyOutgoingEditUsingChatStorage:(id)arg1 {
+    NSString *sid = nil;
+    NSString *prevText = nil;
+    NSDate *msgDate = nil;
+    NSDate *now = [NSDate date];
+
     @try {
-        NSString *origText = [self respondsToSelector:@selector(text)] ? [self text] : nil;
-        NSString *sid = watweak_getStanzaIdFromMessage(self);
-        if (sid && origText && origText.length > 0) {
-            watweak_saveOriginalTextForStanzaID(sid, origText, [NSDate date]);
+        sid = watweak_getStanzaIdFromMessage(self);
+        if ([self respondsToSelector:@selector(text)]) {
+            prevText = [self text];
         }
-    } @catch (NSException *e) {}
+        if ([self respondsToSelector:@selector(messageDate)]) {
+            id md = [self messageDate];
+            if ([md isKindOfClass:[NSDate class]]) {
+                msgDate = (NSDate *)md;
+            }
+        }
+        if (sid && prevText && prevText.length > 0) {
+            watweak_saveOriginalTextForStanzaID(sid, prevText, now);
+            watweak_recordEditForStanzaID(sid, prevText, msgDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:now], YES);
+        }
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception before applyOutgoingEditUsingChatStorage: %@", e);
+    }
+
     %orig;
+
+    @try {
+        NSString *newText = [self respondsToSelector:@selector(text)] ? [self text] : nil;
+        if (sid && newText && newText.length > 0 && ![newText isEqualToString:prevText]) {
+            watweak_recordEditForStanzaID(sid, newText, now, NO);
+        }
+    } @catch (NSException *e) {
+        WATweakLog(@"Exception after applyOutgoingEditUsingChatStorage: %@", e);
+    }
 }
 
 - (BOOL)isRevoked {
@@ -651,9 +895,18 @@ static BOOL watweak_isMessageEdited(id msg) {
 
     NSString *sid = watweak_getStanzaIdFromMessage(message);
     NSString *currentText = [message respondsToSelector:@selector(text)] ? [message text] : nil;
+    NSDate *msgDate = nil;
+    @try {
+        if ([message respondsToSelector:@selector(messageDate)]) {
+            id md = [message performSelector:@selector(messageDate)];
+            if ([md isKindOfClass:[NSDate class]]) msgDate = (NSDate *)md;
+        }
+    } @catch (NSException *e) {}
+
     if (sid && currentText && currentText.length > 0) {
         if (!isEdit) {
             watweak_cacheInitialTextForStanzaID(sid, currentText);
+            watweak_recordEditForStanzaID(sid, currentText, msgDate ?: [NSDate date], YES);
         } else {
             NSString *savedOrig = watweak_getOriginalTextForStanzaID(sid);
             if (!savedOrig) {
@@ -662,6 +915,7 @@ static BOOL watweak_isMessageEdited(id msg) {
                     NSString *cached = sWATweakOriginalTexts[sid];
                     if (cached && ![cached isEqualToString:currentText]) {
                         watweak_saveOriginalTextForStanzaID(sid, cached, nil);
+                        watweak_recordEditForStanzaID(sid, cached, msgDate ?: [NSDate dateWithTimeIntervalSinceNow:-60], YES);
                     }
                 }
             }
@@ -794,30 +1048,50 @@ static BOOL watweak_isMessageEdited(id msg) {
         if (!origText || origText.length == 0) {
             origText = @"(Original message text was not captured during this session)";
         }
-        NSDate *origDate = nil;
-        @try {
-            if ([message respondsToSelector:@selector(messageDate)]) {
-                id md = [message performSelector:@selector(messageDate)];
-                if ([md isKindOfClass:[NSDate class]]) origDate = (NSDate *)md;
-            }
-        } @catch (NSException *e) {}
+        NSDate *origDate = msgDate;
 
         NSDate *editDate = sid ? watweak_getEditDateForStanzaID(sid) : nil;
         if (!editDate) {
             @try {
-                if ([message respondsToSelector:@selector(lastEditTimestamp)]) {
-                    id d = [message performSelector:@selector(lastEditTimestamp)];
-                    if ([d isKindOfClass:[NSDate class]]) editDate = (NSDate *)d;
-                    else if ([d isKindOfClass:[NSNumber class]]) editDate = [NSDate dateWithTimeIntervalSince1970:[d doubleValue]];
+                for (NSString *sel in @[@"latestEditTimestamp", @"lastEditTimestamp"]) {
+                    if ([message respondsToSelector:NSSelectorFromString(sel)]) {
+                        id d = [message performSelector:NSSelectorFromString(sel)];
+                        if ([d isKindOfClass:[NSDate class]]) { editDate = (NSDate *)d; break; }
+                        else if ([d isKindOfClass:[NSNumber class]] && [d doubleValue] > 0) {
+                            editDate = [NSDate dateWithTimeIntervalSince1970:[d doubleValue]];
+                            break;
+                        }
+                    }
                 }
             } @catch (NSException *e) {}
         }
+        if (!editDate) {
+            editDate = origDate ? [NSDate dateWithTimeInterval:60 sinceDate:origDate] : [NSDate date];
+        }
 
-        NSMutableDictionary *badgeData = [NSMutableDictionary dictionaryWithCapacity:4];
+        NSArray *chain = sid ? watweak_getEditChainForStanzaID(sid) : nil;
+        if (sid && currentText && currentText.length > 0) {
+            if (!chain || chain.count == 0) {
+                if (origText && ![origText hasPrefix:@"("]) {
+                    watweak_recordEditForStanzaID(sid, origText, origDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:editDate], YES);
+                }
+                watweak_recordEditForStanzaID(sid, currentText, editDate, NO);
+                chain = watweak_getEditChainForStanzaID(sid);
+            } else {
+                NSDictionary *lastEntry = chain.lastObject;
+                if (![lastEntry[@"text"] isEqualToString:currentText]) {
+                    watweak_recordEditForStanzaID(sid, currentText, editDate, NO);
+                    chain = watweak_getEditChainForStanzaID(sid);
+                }
+            }
+        }
+
+        NSMutableDictionary *badgeData = [NSMutableDictionary dictionaryWithCapacity:6];
         if (origText) badgeData[@"origText"] = origText;
         if (currentText) badgeData[@"currentText"] = currentText;
         if (origDate) badgeData[@"origDate"] = origDate;
         if (editDate) badgeData[@"editDate"] = editDate;
+        if (chain && chain.count > 0) badgeData[@"chain"] = chain;
 
         objc_setAssociatedObject(editBadge, "WATweakBadgeData", [badgeData copy], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     } else {

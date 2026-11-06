@@ -1,0 +1,95 @@
+2026-11-06 03:14:07.916 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-06 03:14:07.923 [WATweak] SideloadFix initializing in pid=824
+2026-11-06 03:14:07.924 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-06 03:14:07.931 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-06 03:14:07.940 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x11212d244
+2026-11-06 03:14:08.103 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-06 03:14:08.294 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-06 03:14:08.410 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+
+==================== CRASH: SIGNAL 11 ====================
+0   Tweak.dylib                         0x00000001048e1530 _ZL17our_signalHandleriP9__siginfoPv + 180
+1   libsystem_platform.dylib            0x00000002a64e61b8 BDCDC3C3-CFAC-3030-958F-49047F12C464 + 16824
+2   Tweak.dylib                         0x00000001048d6840 findVideoPathInViewHierarchy + 1068
+3   Tweak.dylib                         0x00000001048d69c0 findVideoPathInViewHierarchy + 1452
+4   Tweak.dylib                         0x00000001048cede0 findVideoPathInControllerHierarchy + 828
+5   Tweak.dylib                         0x00000001048cbc50 +[MediaSaver saveMediaFromController:] + 472
+6   Tweak.dylib                         0x00000001048ca5e0 -[MediaSaver handleButtonTap:] + 356
+7   UIKitCore                           0x000000018b68c9a0 9EE8C19A-A370-3599-823B-34B84131AAD7 + 5740960
+8   WhatsApp                            0x0000000115f5d918 XPluginsGetFuncPtr + 945496
+9   UIKitCore                           0x000000018b7bc4d8 9EE8C19A-A370-3599-823B-34B84131AAD7 + 6984920
+10  UIKitCore                           0x000000018b733d14 9EE8C19A-A370-3599-823B-34B84131AAD7 + 6425876
+11  UIKitCore                           0x000000018b828804 9EE8C19A-A370-3599-823B-34B84131AAD7 + 7428100
+12  UIKitCore                           0x000000018b828ce4 9EE8C19A-A370-3599-823B-34B84131AAD7 + 7429348
+13  UIKitCore                           0x000000018b20c638 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1021496
+14  UIKitCore                           0x000000018b1f1560 9EE8C19A-A370-3599-823B-34B84131AAD7 + 910688
+15  UIKitCore                           0x000000018b205638 9EE8C19A-A370-3599-823B-34B84131AAD7 + 992824
+16  WhatsApp                            0x0000000116315f98 XPluginsGetListLookupDataPair + 3879232
+17  UIKitCore                           0x000000018b1f2040 9EE8C19A-A370-3599-823B-34B84131AAD7 + 913472
+18  UIKitCore                           0x000000018b20b18c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1016204
+19  UIKitCore                           0x000000018b1f4d48 9EE8C19A-A370-3599-823B-34B84131AAD7 + 925000
+20  UIKitCore                           0x000000018b20e2a8 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1028776
+21  UIKitCore                           0x000000018b20b834 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1017908
+22  UpdateCycle                         0x000000029a41756c 6627CD0B-B0FE-3E02-8D0A-33BBF0812E4D + 5484
+23  CoreFoundation                      0x000000018552f1d8 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 139736
+24  CoreFoundation                      0x0000000185571824 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 411684
+25  CoreFoundation                      0x000000018557174c FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 411468
+26  CoreFoundation                      0x000000018553c6e4 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 194276
+27  CoreFoundation                      0x000000018553b54c FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 189772
+28  GraphicsServices                    0x000000022aca7498 GSEventRunModal + 120
+29  UIKitCore                           0x000000018b234244 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1184324
+30  UIKitCore                           0x000000018b19f158 UIApplicationMain + 332
+31  WhatsApp                            0x0000000115e701cc XPluginsGetDataPair + 67224
+32  LiveContainerShared                 0x00000001047930f8 invokeAppMain + 7484
+33  LiveContainerShared                 0x0000000104790b50 LiveContainerMain + 2360
+34  dyld                                0x0000000182149c1c 41DE795B-9283-37FD-917E-D674BB73F541 + 19484
+==========================================================
+
+2026-11-06 03:14:32.615 [WATweak] Crash handler fully armed (Exceptions + Signals + C++ terminate + fishhook traps).
+2026-11-06 03:14:32.616 [WATweak] SideloadFix initializing in pid=830
+2026-11-06 03:14:32.616 [WATweak] Keychain access group discovered: 66Q47AU3S7.com.kdt.livecontainer.shared.32
+2026-11-06 03:14:32.622 [WATweak] SideloadFix initialized and %init completed successfully.
+2026-11-06 03:14:32.630 [WATweak] Intercepted NSSetUncaughtExceptionHandler -> chaining handler: 0x1125b9244
+2026-11-06 03:14:32.778 [WATweak] CNContactStore authorizationStatusForEntityType -> reporting Denied for sandbox safety
+2026-11-06 03:14:32.957 [WATweak] [Siri] Fake setVocabulary:ofType: called -> safely ignored
+2026-11-06 03:14:33.072 [WATweak] Intercepted UNUserNotificationCenter requestAuthorizationWithOptions -> immediately granting YES
+2026-11-06 03:14:40.944 [WATweak] Suppressed revokeIncomingMessage for message: 0xbb32d31045938803 <x-coredata://430B1D10-7D25-4AA3-9E45-625366EC8017/WAMessage/p86>
+
+==================== CRASH: SIGNAL 11 ====================
+0   Tweak.dylib                         0x0000000100e19530 _ZL17our_signalHandleriP9__siginfoPv + 180
+1   libsystem_platform.dylib            0x00000002a64e61b8 BDCDC3C3-CFAC-3030-958F-49047F12C464 + 16824
+2   Tweak.dylib                         0x0000000100e06a0c safeInvokeGetter + 124
+3   Tweak.dylib                         0x0000000100e05534 extractVideoPathFromAnyObject + 304
+4   Tweak.dylib                         0x0000000100e06c8c findVideoPathInControllerHierarchy + 488
+5   Tweak.dylib                         0x0000000100e03c50 +[MediaSaver saveMediaFromController:] + 472
+6   Tweak.dylib                         0x0000000100e025e0 -[MediaSaver handleButtonTap:] + 356
+7   UIKitCore                           0x000000018b68c9a0 9EE8C19A-A370-3599-823B-34B84131AAD7 + 5740960
+8   WhatsApp                            0x000000011b1bd918 XPluginsGetFuncPtr + 945496
+9   UIKitCore                           0x000000018b7bc4d8 9EE8C19A-A370-3599-823B-34B84131AAD7 + 6984920
+10  UIKitCore                           0x000000018b733d14 9EE8C19A-A370-3599-823B-34B84131AAD7 + 6425876
+11  UIKitCore                           0x000000018b828804 9EE8C19A-A370-3599-823B-34B84131AAD7 + 7428100
+12  UIKitCore                           0x000000018b828ce4 9EE8C19A-A370-3599-823B-34B84131AAD7 + 7429348
+13  UIKitCore                           0x000000018b20c638 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1021496
+14  UIKitCore                           0x000000018b1f1560 9EE8C19A-A370-3599-823B-34B84131AAD7 + 910688
+15  UIKitCore                           0x000000018b205638 9EE8C19A-A370-3599-823B-34B84131AAD7 + 992824
+16  WhatsApp                            0x000000011b575f98 XPluginsGetListLookupDataPair + 3879232
+17  UIKitCore                           0x000000018b1f2040 9EE8C19A-A370-3599-823B-34B84131AAD7 + 913472
+18  UIKitCore                           0x000000018b20b18c 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1016204
+19  UIKitCore                           0x000000018b1f4d48 9EE8C19A-A370-3599-823B-34B84131AAD7 + 925000
+20  UIKitCore                           0x000000018b20e2a8 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1028776
+21  UIKitCore                           0x000000018b20b834 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1017908
+22  UpdateCycle                         0x000000029a41756c 6627CD0B-B0FE-3E02-8D0A-33BBF0812E4D + 5484
+23  CoreFoundation                      0x00000001855ad358 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 656216
+24  CoreFoundation                      0x00000001855ad2cc FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 656076
+25  CoreFoundation                      0x00000001855725a8 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 415144
+26  CoreFoundation                      0x000000018553c1a0 FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 192928
+27  CoreFoundation                      0x000000018553b54c FE9658B2-9DE6-3FA5-907B-0B3A3BCBB0B7 + 189772
+28  GraphicsServices                    0x000000022aca7498 GSEventRunModal + 120
+29  UIKitCore                           0x000000018b234244 9EE8C19A-A370-3599-823B-34B84131AAD7 + 1184324
+30  UIKitCore                           0x000000018b19f158 UIApplicationMain + 332
+31  WhatsApp                            0x000000011b0d01cc XPluginsGetDataPair + 67224
+32  LiveContainerShared                 0x0000000100dd30f8 invokeAppMain + 7484
+33  LiveContainerShared                 0x0000000100dd0b50 LiveContainerMain + 2360
+34  dyld                                0x0000000182149c1c 41DE795B-9283-37FD-917E-D674BB73F541 + 19484
+==========================================================
+
