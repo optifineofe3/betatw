@@ -1,46 +1,32 @@
-Нужно точечно починить 3 проблемы в WhatsApp-твике. Рабочий функционал не ломать.
+Критический краш: приложение падает, если в чате есть хотя бы одно отредактированное сообщение.
 
-### 1. По кнопке MediaSaver: КРИТИЧНО (КРАШИТ)
-Раньше сохранение работало. Не переписывай всю логику поиска медиа с нуля.
-Проверить лог можешь тутт  C:\Users\user\Desktop\КОД\Tweak2\tweak_debug.txt
+Стек из tweak_debug.txt (можешь сам посмотреть):
+SIGNAL 11 внутри
+_logos_method$_ungrouped$WAMessageBubbleTableViewCell$layoutSubviews
 
-Сделай минимальный точечный фикс:
-1. Исправь только unsafe safeInvokeGetter (он крашит на non-object return types).
-2. Добавь защиту в рекурсивный обход (visited set / depth limit / @try@catch), не меняя саму стратегию поиска.
-3. Не ломай уже рабочее сохранение фото/видео.
+Без EDITED сообщений всё работает. С EDITED — краш при layout ячейки.
 
-Не рефакторь MediaSaver целиком. Только убери краш.
+### Что нужно сделать
 
-### 2. История правок как в Telegram
+1. Найди и устрани краш строго в пути isEdit внутри
+   %hook WAMessageBubbleTableViewCell -layoutSubviews
 
-Сейчас показывается только:
-- Original message
-- Edited message
+2. Вероятные причины:
+   - небезопасный performSelector / IMP-вызов для messageDate, latestEditTimestamp, lastEditTimestamp и похожих геттеров (могут возвращать примитив, а не объект)
+   - тяжёлая/опасная работа с edit chain / original text прямо в layoutSubviews
+   - обращение к nil объектам при сборке badgeData/chain только для edited сообщений
 
-Нужно сделать цепочку как в Telegram-твике (C:\Users\user\Desktop\КОД\Tweak):
-Original → Edit 1 → Edit 2 → ... → Current edited message
+3. Требования к фиксу:
+   - layoutSubviews должен быть максимально лёгким и безопасным
+   - никакого тяжёлого record/persist chain на каждый layout
+   - все обращения к свойствам WAMessage только через безопасные обёртки (проверка signature/return type + @try/@catch)
+   - DEL не трогай
+   - логику показа EDT/EDITED сохрани
+   - multi-edit history не выкидывай, но тяжёлую запись истории убери из layout path (оставляй в edit hooks: attachMessageEdit / applyOutgoingEdit и т.п.)
 
-Требования:
-- Храни полную историю правок текста (не только первый original и последний current).
-- При каждой новой правке добавляй новый элемент в цепочку.
-- В UI истории показывай все шаги по порядку.
-- Логику DEL и сами бейджи EDT/EDITED не ломай.
+4. После фикса:
+   - чат с отредактированными сообщениями не должен крашиться
+   - бейдж EDITED/EDT должен остаться
+   - тап по бейджу и история правок должны работать
 
-### 3. Timestamp у правок
-
-Сейчас timestamp нормально есть в основном у Original, у Edited часто `[--:--:--]`.
-
-Сделай:
-- Для каждой записи в истории правок сохраняй реальное время правки.
-- В карточке истории у каждого пункта (Original / Edit 1 / Edit 2 / Current) показывай timestamp.
-- Если точное время правки неизвестно — не показывай фейковый пустой `--:--:--` без смысла; по возможности бери messageDate / lastEditTimestamp / creationDate из модели WhatsApp.
-
-### Общие требования
-- Не ломай сохранение медиа, бейджи, LiveContainer/SideloadFix, FilePickerFix.
-- Не возвращай старые краши по EDITED badge.
-- Сделай аккуратно и профессионально.
-
-В конце кратко опиши:
-1) как именно обезопасил safeInvokeGetter и поиск video path
-2) как реализовал multi-edit history chain
-3) как починил timestamps
+Сделай точечный профессиональный фикс, без большого рефакторинга всего твика.

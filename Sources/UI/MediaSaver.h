@@ -11,6 +11,9 @@ NSArray<NSDictionary *> *watweak_getEditChainForStanzaID(NSString *sid);
 void watweak_recordEditForStanzaID(NSString *sid, NSString *text, NSDate *date, BOOL isOriginal);
 void watweak_saveOriginalTextForStanzaID(NSString *sid, NSString *origText, NSDate *editDate);
 void watweak_cacheInitialTextForStanzaID(NSString *sid, NSString *text);
+NSDate *watweak_safeGetDate(id obj, SEL sel);
+NSString *watweak_safeGetString(id obj, SEL sel);
+BOOL watweak_safeGetBool(id obj, SEL sel);
 
 #ifdef __cplusplus
 }

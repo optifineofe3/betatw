@@ -325,6 +325,125 @@ static NSUInteger safeInvokeInteger(id obj, NSString *selectorName) {
     }
 }
 
+NSDate *watweak_safeGetDate(id obj, SEL sel) {
+    if (!obj || !sel) return nil;
+    if ((uintptr_t)obj < 0x10000) return nil;
+    @try {
+        if (![obj respondsToSelector:sel]) return nil;
+        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
+        if (!sig || [sig numberOfArguments] != 2) return nil;
+        const char *retType = [sig methodReturnType];
+        if (!retType) return nil;
+        
+        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+        [inv setTarget:obj];
+        [inv setSelector:sel];
+        [inv invoke];
+        
+        char t = retType[0];
+        if (t == '@') {
+            void *retVal = NULL;
+            [inv getReturnValue:&retVal];
+            if (!retVal || (uintptr_t)retVal < 0x10000) return nil;
+            id objRet = (__bridge id)retVal;
+            if ([objRet isKindOfClass:[NSDate class]]) {
+                return (NSDate *)objRet;
+            } else if ([objRet isKindOfClass:[NSNumber class]]) {
+                double val = [(NSNumber *)objRet doubleValue];
+                if (val > 0.0) {
+                    if (val > 1000000000000.0) val /= 1000.0;
+                    return [NSDate dateWithTimeIntervalSince1970:val];
+                }
+            }
+            return nil;
+        } else if (t == 'd') {
+            double val = 0.0;
+            [inv getReturnValue:&val];
+            if (val > 0.0) {
+                if (val > 1000000000000.0) val /= 1000.0;
+                return [NSDate dateWithTimeIntervalSince1970:val];
+            }
+        } else if (t == 'f') {
+            float val = 0.0f;
+            [inv getReturnValue:&val];
+            if (val > 0.0f) {
+                return [NSDate dateWithTimeIntervalSince1970:(double)val];
+            }
+        } else if (t == 'q' || t == 'Q' || t == 'i' || t == 'I' || t == 'l' || t == 'L') {
+            long long val = 0;
+            [inv getReturnValue:&val];
+            if (val > 0) {
+                double dVal = (double)val;
+                if (dVal > 1000000000000.0) dVal /= 1000.0;
+                return [NSDate dateWithTimeIntervalSince1970:dVal];
+            }
+        }
+    } @catch (NSException *e) {}
+    return nil;
+}
+
+NSString *watweak_safeGetString(id obj, SEL sel) {
+    if (!obj || !sel) return nil;
+    if ((uintptr_t)obj < 0x10000) return nil;
+    @try {
+        if (![obj respondsToSelector:sel]) return nil;
+        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
+        if (!sig || [sig numberOfArguments] != 2) return nil;
+        const char *retType = [sig methodReturnType];
+        if (!retType || retType[0] != '@') return nil;
+        
+        NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+        [inv setTarget:obj];
+        [inv setSelector:sel];
+        [inv invoke];
+        void *retVal = NULL;
+        [inv getReturnValue:&retVal];
+        if (!retVal || (uintptr_t)retVal < 0x10000) return nil;
+        id objRet = (__bridge id)retVal;
+        if ([objRet isKindOfClass:[NSString class]]) {
+            return (NSString *)objRet;
+        }
+    } @catch (NSException *e) {}
+    return nil;
+}
+
+BOOL watweak_safeGetBool(id obj, SEL sel) {
+    if (!obj || !sel) return NO;
+    if ((uintptr_t)obj < 0x10000) return NO;
+    @try {
+        if (![obj respondsToSelector:sel]) return NO;
+        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
+        if (!sig || [sig numberOfArguments] != 2) return NO;
+        const char *retType = [sig methodReturnType];
+        if (!retType) return NO;
+        
+        char t = retType[0];
+        if (t == 'c' || t == 'B' || t == 'i' || t == 'q' || t == 's' || t == 'I' || t == 'Q' || t == 'l' || t == 'L') {
+            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+            [inv setTarget:obj];
+            [inv setSelector:sel];
+            [inv invoke];
+            long long val = 0;
+            [inv getReturnValue:&val];
+            return val != 0;
+        } else if (t == '@') {
+            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+            [inv setTarget:obj];
+            [inv setSelector:sel];
+            [inv invoke];
+            void *retVal = NULL;
+            [inv getReturnValue:&retVal];
+            if (!retVal || (uintptr_t)retVal < 0x10000) return NO;
+            id objRet = (__bridge id)retVal;
+            if ([objRet isKindOfClass:[NSNumber class]]) {
+                return [(NSNumber *)objRet boolValue];
+            }
+            return objRet != nil;
+        }
+    } @catch (NSException *e) {}
+    return NO;
+}
+
 static NSString *extractVideoPathFromAnyObject(id obj) {
     if (!obj) return nil;
     if ((uintptr_t)obj < 0x10000) return nil;
@@ -1128,25 +1247,16 @@ static id findMediaInController(UIViewController *ctrl) {
             NSArray *chain = watweak_getEditChainForStanzaID(sid);
             if (chain && chain.count > 0) data[@"chain"] = chain;
         }
-        if ([message respondsToSelector:@selector(text)]) {
-            NSString *cur = [message text];
-            if (cur) data[@"currentText"] = cur;
-        }
-        if ([message respondsToSelector:@selector(messageDate)]) {
-            id md = [message performSelector:@selector(messageDate)];
-            if ([md isKindOfClass:[NSDate class]]) data[@"origDate"] = md;
-        }
+        NSString *cur = watweak_safeGetString(message, @selector(text));
+        if (cur) data[@"currentText"] = cur;
+
+        NSDate *md = watweak_safeGetDate(message, @selector(messageDate));
+        if (md) data[@"origDate"] = md;
+
         if (!data[@"editDate"]) {
-            for (NSString *sel in @[@"latestEditTimestamp", @"lastEditTimestamp"]) {
-                if ([message respondsToSelector:NSSelectorFromString(sel)]) {
-                    id d = [message performSelector:NSSelectorFromString(sel)];
-                    if ([d isKindOfClass:[NSDate class]]) { data[@"editDate"] = d; break; }
-                    else if ([d isKindOfClass:[NSNumber class]] && [d doubleValue] > 0) {
-                        data[@"editDate"] = [NSDate dateWithTimeIntervalSince1970:[d doubleValue]];
-                        break;
-                    }
-                }
-            }
+            NSDate *ed = watweak_safeGetDate(message, @selector(latestEditTimestamp));
+            if (!ed) ed = watweak_safeGetDate(message, @selector(lastEditTimestamp));
+            if (ed) data[@"editDate"] = ed;
         }
     } @catch (NSException *e) {}
 

@@ -404,21 +404,25 @@ extern "C" NSArray<NSDictionary *> *watweak_getEditChainForStanzaID(NSString *si
 }
 
 extern "C" NSString *watweak_getStanzaIdFromMessage(id msg) {
-    if (!msg) return nil;
+    if (!msg || (uintptr_t)msg < 0x10000) return nil;
     NSString *sid = nil;
     @try {
-        if ([msg respondsToSelector:@selector(stanzaID)]) {
-            sid = [msg stanzaID];
-        }
-        if (!sid && [msg respondsToSelector:@selector(stanzaId)]) {
-            sid = [msg stanzaId];
+        sid = watweak_safeGetString(msg, @selector(stanzaID));
+        if (!sid) {
+            sid = watweak_safeGetString(msg, @selector(stanzaId));
         }
         if (!sid && [msg respondsToSelector:@selector(messageID)]) {
-            id mid = [msg messageID];
-            if ([mid respondsToSelector:@selector(stanzaID)]) {
-                sid = [mid stanzaID];
-            } else if ([mid isKindOfClass:[NSString class]]) {
-                sid = (NSString *)mid;
+            id mid = nil;
+            @try { mid = [msg valueForKey:@"messageID"]; } @catch (NSException *e) {}
+            if (!mid) {
+                mid = watweak_safeGetString(msg, @selector(messageID));
+            }
+            if (mid && (uintptr_t)mid >= 0x10000) {
+                if ([mid isKindOfClass:[NSString class]]) {
+                    sid = (NSString *)mid;
+                } else {
+                    sid = watweak_safeGetString(mid, @selector(stanzaID));
+                }
             }
         }
     } @catch (NSException *e) {}
@@ -526,22 +530,19 @@ static BOOL watweak_isMessageRevoked(id msg) {
 }
 
 static BOOL watweak_isMessageEdited(id msg) {
-    if (!msg) return NO;
+    if (!msg || (uintptr_t)msg < 0x10000) return NO;
     @try {
-        if ([msg respondsToSelector:@selector(isMessageEdited)] && [msg isMessageEdited]) {
-            return YES;
-        }
-        if ([msg respondsToSelector:@selector(isEdited)] && [msg isEdited]) {
-            return YES;
-        }
-        if ([msg respondsToSelector:@selector(latestEditTimestamp)]) {
-            id ts = [msg latestEditTimestamp];
-            if ([ts isKindOfClass:[NSNumber class]] && [ts doubleValue] > 0) return YES;
-            if ([ts isKindOfClass:[NSDate class]]) return YES;
-        }
-        if ([msg respondsToSelector:@selector(latestEditReceivedTimestamp)]) {
-            id rts = [msg latestEditReceivedTimestamp];
-            if (rts != nil && ![rts isEqual:[NSNull null]]) return YES;
+        if (watweak_safeGetBool(msg, @selector(isMessageEdited))) return YES;
+        if (watweak_safeGetBool(msg, @selector(isEdited))) return YES;
+        if (watweak_safeGetDate(msg, @selector(latestEditTimestamp)) != nil) return YES;
+        if (watweak_safeGetDate(msg, @selector(lastEditTimestamp)) != nil) return YES;
+        if (watweak_safeGetDate(msg, @selector(latestEditReceivedTimestamp)) != nil) return YES;
+
+        NSString *sid = watweak_getStanzaIdFromMessage(msg);
+        if (sid && sid.length > 0) {
+            NSArray *chain = watweak_getEditChainForStanzaID(sid);
+            if (chain && chain.count > 1) return YES;
+            if (watweak_getOriginalTextForStanzaID(sid) != nil) return YES;
         }
     } @catch (NSException *e) {}
     return NO;
@@ -599,15 +600,8 @@ static BOOL watweak_isMessageEdited(id msg) {
 
         if (targetMessage) {
             sid = watweak_getStanzaIdFromMessage(targetMessage);
-            if ([targetMessage respondsToSelector:@selector(text)]) {
-                prevText = [targetMessage text];
-            }
-            if ([targetMessage respondsToSelector:@selector(messageDate)]) {
-                id md = [targetMessage messageDate];
-                if ([md isKindOfClass:[NSDate class]]) {
-                    origMsgDate = (NSDate *)md;
-                }
-            }
+            prevText = watweak_safeGetString(targetMessage, @selector(text));
+            origMsgDate = watweak_safeGetDate(targetMessage, @selector(messageDate));
         }
         if (!sid && stanzaID) {
             sid = (NSString *)stanzaID;
@@ -625,11 +619,11 @@ static BOOL watweak_isMessageEdited(id msg) {
 
     @try {
         NSString *newText = nil;
-        if (targetMessage && [targetMessage respondsToSelector:@selector(text)]) {
-            newText = [targetMessage text];
+        if (targetMessage) {
+            newText = watweak_safeGetString(targetMessage, @selector(text));
         }
-        if ((!newText || newText.length == 0) && edit && [edit respondsToSelector:@selector(text)]) {
-            newText = [edit text];
+        if ((!newText || newText.length == 0) && edit) {
+            newText = watweak_safeGetString(edit, @selector(text));
         }
         if (sid && newText && newText.length > 0 && ![newText isEqualToString:prevText]) {
             watweak_recordEditForStanzaID(sid, newText, editDate ?: [NSDate date], NO);
@@ -653,15 +647,8 @@ static BOOL watweak_isMessageEdited(id msg) {
 
     @try {
         sid = watweak_getStanzaIdFromMessage(self);
-        if ([self respondsToSelector:@selector(text)]) {
-            prevText = [self text];
-        }
-        if ([self respondsToSelector:@selector(messageDate)]) {
-            id md = [self messageDate];
-            if ([md isKindOfClass:[NSDate class]]) {
-                msgDate = (NSDate *)md;
-            }
-        }
+        prevText = watweak_safeGetString(self, @selector(text));
+        msgDate = watweak_safeGetDate(self, @selector(messageDate));
         if (sid && prevText && prevText.length > 0) {
             watweak_saveOriginalTextForStanzaID(sid, prevText, now);
             watweak_recordEditForStanzaID(sid, prevText, msgDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:now], YES);
@@ -673,7 +660,7 @@ static BOOL watweak_isMessageEdited(id msg) {
     %orig;
 
     @try {
-        NSString *newText = [self respondsToSelector:@selector(text)] ? [self text] : nil;
+        NSString *newText = watweak_safeGetString(self, @selector(text));
         if (sid && newText && newText.length > 0 && ![newText isEqualToString:prevText]) {
             watweak_recordEditForStanzaID(sid, newText, now, NO);
         }
@@ -893,35 +880,6 @@ static BOOL watweak_isMessageEdited(id msg) {
     BOOL isDel = watweak_isMessageRevoked(message);
     BOOL isEdit = watweak_isMessageEdited(message);
 
-    NSString *sid = watweak_getStanzaIdFromMessage(message);
-    NSString *currentText = [message respondsToSelector:@selector(text)] ? [message text] : nil;
-    NSDate *msgDate = nil;
-    @try {
-        if ([message respondsToSelector:@selector(messageDate)]) {
-            id md = [message performSelector:@selector(messageDate)];
-            if ([md isKindOfClass:[NSDate class]]) msgDate = (NSDate *)md;
-        }
-    } @catch (NSException *e) {}
-
-    if (sid && currentText && currentText.length > 0) {
-        if (!isEdit) {
-            watweak_cacheInitialTextForStanzaID(sid, currentText);
-            watweak_recordEditForStanzaID(sid, currentText, msgDate ?: [NSDate date], YES);
-        } else {
-            NSString *savedOrig = watweak_getOriginalTextForStanzaID(sid);
-            if (!savedOrig) {
-                watweak_initEditStorageIfNeeded();
-                @synchronized(sWATweakOriginalTexts) {
-                    NSString *cached = sWATweakOriginalTexts[sid];
-                    if (cached && ![cached isEqualToString:currentText]) {
-                        watweak_saveOriginalTextForStanzaID(sid, cached, nil);
-                        watweak_recordEditForStanzaID(sid, cached, msgDate ?: [NSDate dateWithTimeIntervalSinceNow:-60], YES);
-                    }
-                }
-            }
-        }
-    }
-
     UILabel *delBadge = (UILabel *)[self.contentView viewWithTag:998855];
     UILabel *editBadge = (UILabel *)[self.contentView viewWithTag:998856];
 
@@ -929,6 +887,14 @@ static BOOL watweak_isMessageEdited(id msg) {
         if (delBadge) delBadge.hidden = YES;
         if (editBadge) editBadge.hidden = YES;
         return;
+    }
+
+    NSString *sid = watweak_getStanzaIdFromMessage(message);
+    NSString *currentText = watweak_safeGetString(message, @selector(text));
+
+    // Lightweight in-memory cache of initial unedited text, NO heavy recording or disk persists in layout path
+    if (!isEdit && sid && currentText && currentText.length > 0) {
+        watweak_cacheInitialTextForStanzaID(sid, currentText);
     }
 
     CGRect bFrame = CGRectZero;
@@ -1048,43 +1014,20 @@ static BOOL watweak_isMessageEdited(id msg) {
         if (!origText || origText.length == 0) {
             origText = @"(Original message text was not captured during this session)";
         }
-        NSDate *origDate = msgDate;
+        NSDate *origDate = watweak_safeGetDate(message, @selector(messageDate));
 
         NSDate *editDate = sid ? watweak_getEditDateForStanzaID(sid) : nil;
         if (!editDate) {
-            @try {
-                for (NSString *sel in @[@"latestEditTimestamp", @"lastEditTimestamp"]) {
-                    if ([message respondsToSelector:NSSelectorFromString(sel)]) {
-                        id d = [message performSelector:NSSelectorFromString(sel)];
-                        if ([d isKindOfClass:[NSDate class]]) { editDate = (NSDate *)d; break; }
-                        else if ([d isKindOfClass:[NSNumber class]] && [d doubleValue] > 0) {
-                            editDate = [NSDate dateWithTimeIntervalSince1970:[d doubleValue]];
-                            break;
-                        }
-                    }
-                }
-            } @catch (NSException *e) {}
+            editDate = watweak_safeGetDate(message, @selector(latestEditTimestamp));
+            if (!editDate) {
+                editDate = watweak_safeGetDate(message, @selector(lastEditTimestamp));
+            }
         }
         if (!editDate) {
             editDate = origDate ? [NSDate dateWithTimeInterval:60 sinceDate:origDate] : [NSDate date];
         }
 
         NSArray *chain = sid ? watweak_getEditChainForStanzaID(sid) : nil;
-        if (sid && currentText && currentText.length > 0) {
-            if (!chain || chain.count == 0) {
-                if (origText && ![origText hasPrefix:@"("]) {
-                    watweak_recordEditForStanzaID(sid, origText, origDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:editDate], YES);
-                }
-                watweak_recordEditForStanzaID(sid, currentText, editDate, NO);
-                chain = watweak_getEditChainForStanzaID(sid);
-            } else {
-                NSDictionary *lastEntry = chain.lastObject;
-                if (![lastEntry[@"text"] isEqualToString:currentText]) {
-                    watweak_recordEditForStanzaID(sid, currentText, editDate, NO);
-                    chain = watweak_getEditChainForStanzaID(sid);
-                }
-            }
-        }
 
         NSMutableDictionary *badgeData = [NSMutableDictionary dictionaryWithCapacity:6];
         if (origText) badgeData[@"origText"] = origText;
@@ -1094,6 +1037,7 @@ static BOOL watweak_isMessageEdited(id msg) {
         if (chain && chain.count > 0) badgeData[@"chain"] = chain;
 
         objc_setAssociatedObject(editBadge, "WATweakBadgeData", [badgeData copy], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(editBadge, "WATweakBadgeMsg", message, OBJC_ASSOCIATION_ASSIGN);
     } else {
         if (editBadge) editBadge.hidden = YES;
     }
