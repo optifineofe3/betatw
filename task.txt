@@ -1,32 +1,40 @@
-Критический краш: приложение падает, если в чате есть хотя бы одно отредактированное сообщение.
+Два бага после последнего фикса. Не ломай то, что уже работает (нет краша, DEL в целом ок, кнопка сохранения ок).
 
-Стек из tweak_debug.txt (можешь сам посмотреть):
-SIGNAL 11 внутри
-_logos_method$_ungrouped$WAMessageBubbleTableViewCell$layoutSubviews
+### Баг 1. На удалённых сообщениях появляется лишний EDITED
+Если человек удаляет сообщение, рядом с DEL появляется ещё и EDITED — хотя сообщение никто не редактировал.
 
-Без EDITED сообщений всё работает. С EDITED — краш при layout ячейки.
+Нужно:
+- DELETED и EDITED определять независимо
+- revoked/deleted сообщение НЕ должно автоматически считаться edited
+- если isDel == YES, не ставить isEdit просто так
+- убрать false positive EDITED на удаленных сообщениях
 
-### Что нужно сделать
+### Баг 2. История правок не сохраняет original
+При реальном редактировании:
+- по нажатию на EDITED показывается только текущий текст
+- original пишет: "Original message text was not captured during this session"
 
-1. Найди и устрани краш строго в пути isEdit внутри
-   %hook WAMessageBubbleTableViewCell -layoutSubviews
+Нужно:
+- ДО правки обязательно кэшировать исходный текст сообщения
+- при первой правке в цепочке должен быть:
+  1) Original message (старый текст)
+  2) Current edited message (новый текст)
+- при следующих правках:
+  Original → Edit 1 → Edit 2 → ... → Current
+- текст original не должен теряться
+- timestamps по возможности сохранять
 
-2. Вероятные причины:
-   - небезопасный performSelector / IMP-вызов для messageDate, latestEditTimestamp, lastEditTimestamp и похожих геттеров (могут возвращать примитив, а не объект)
-   - тяжёлая/опасная работа с edit chain / original text прямо в layoutSubviews
-   - обращение к nil объектам при сборке badgeData/chain только для edited сообщений
+Где чинить:
+- кэш original text должен писаться ДО edit (например при обычном layout/появлении сообщения, или в хуках до apply edit)
+- запись edit chain должна происходить в хуках редактирования (attachMessageEdit / applyOutgoingEdit и т.п.), а не ломаться из-за облегчённого layoutSubviews
+- layoutSubviews оставь лёгким, но данные для original/edit history должны успевать сохраняться
 
-3. Требования к фиксу:
-   - layoutSubviews должен быть максимально лёгким и безопасным
-   - никакого тяжёлого record/persist chain на каждый layout
-   - все обращения к свойствам WAMessage только через безопасные обёртки (проверка signature/return type + @try/@catch)
-   - DEL не трогай
-   - логику показа EDT/EDITED сохрани
-   - multi-edit history не выкидывай, но тяжёлую запись истории убери из layout path (оставляй в edit hooks: attachMessageEdit / applyOutgoingEdit и т.п.)
+### Важно
+- не возвращай краш на edited сообщениях
+- не ломай DEL
+- не ломай MediaSaver
+- сделай точечный фикс
 
-4. После фикса:
-   - чат с отредактированными сообщениями не должен крашиться
-   - бейдж EDITED/EDT должен остаться
-   - тап по бейджу и история правок должны работать
-
-Сделай точечный профессиональный фикс, без большого рефакторинга всего твика.
+Цель:
+1) на deleted только DEL, без ложного EDITED
+2) на edited по тапу видна нормальная история, где original — реальный старый текст, а не заглушка

@@ -402,6 +402,9 @@ NSString *watweak_safeGetString(id obj, SEL sel) {
         id objRet = (__bridge id)retVal;
         if ([objRet isKindOfClass:[NSString class]]) {
             return (NSString *)objRet;
+        } else if ([objRet respondsToSelector:@selector(string)]) {
+            id s = [objRet performSelector:@selector(string)];
+            if ([s isKindOfClass:[NSString class]]) return (NSString *)s;
         }
     } @catch (NSException *e) {}
     return nil;
@@ -1248,6 +1251,7 @@ static id findMediaInController(UIViewController *ctrl) {
             if (chain && chain.count > 0) data[@"chain"] = chain;
         }
         NSString *cur = watweak_safeGetString(message, @selector(text));
+        if (!cur || cur.length == 0) cur = watweak_safeGetString(message, @selector(messageText));
         if (cur) data[@"currentText"] = cur;
 
         NSDate *md = watweak_safeGetDate(message, @selector(messageDate));

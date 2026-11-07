@@ -429,6 +429,31 @@ extern "C" NSString *watweak_getStanzaIdFromMessage(id msg) {
     return sid;
 }
 
+static NSString *watweak_extractText(id obj) {
+    if (!obj || (uintptr_t)obj < 0x10000) return nil;
+    @try {
+        NSString *t = watweak_safeGetString(obj, @selector(text));
+        if (t && t.length > 0) return t;
+        t = watweak_safeGetString(obj, @selector(messageText));
+        if (t && t.length > 0) return t;
+        t = watweak_safeGetString(obj, @selector(previewText));
+        if (t && t.length > 0) return t;
+        t = watweak_safeGetString(obj, @selector(body));
+        if (t && t.length > 0) return t;
+        t = watweak_safeGetString(obj, @selector(rawText));
+        if (t && t.length > 0) return t;
+        @try {
+            id val = [obj valueForKey:@"text"];
+            if ([val isKindOfClass:[NSString class]] && [(NSString *)val length] > 0) return (NSString *)val;
+            if ([val respondsToSelector:@selector(string)]) {
+                NSString *s = [val string];
+                if (s && s.length > 0) return s;
+            }
+        } @catch (NSException *e) {}
+    } @catch (NSException *e) {}
+    return nil;
+}
+
 extern "C" void watweak_cacheInitialTextForStanzaID(NSString *sid, NSString *text) {
     if (!sid || !text || text.length == 0) return;
     watweak_initEditStorageIfNeeded();
@@ -532,18 +557,37 @@ static BOOL watweak_isMessageRevoked(id msg) {
 static BOOL watweak_isMessageEdited(id msg) {
     if (!msg || (uintptr_t)msg < 0x10000) return NO;
     @try {
+        NSString *sid = watweak_getStanzaIdFromMessage(msg);
+
+        // Check if we have a verified multi-step edit chain or saved edit text
+        BOOL hasVerifiedEdit = NO;
+        if (sid && sid.length > 0) {
+            NSArray *chain = watweak_getEditChainForStanzaID(sid);
+            if (chain && chain.count > 1) {
+                hasVerifiedEdit = YES;
+            } else {
+                @synchronized(sWATweakEditedTexts) {
+                    if (sWATweakEditedTexts[sid] != nil) {
+                        hasVerifiedEdit = YES;
+                    }
+                }
+            }
+        }
+
+        // If message is revoked/deleted, NEVER rely on WhatsApp's internal update timestamps
+        // because WhatsApp sets update timestamps when processing revoke stanzas.
+        // A deleted message is ONLY considered edited if verified edit data exists!
+        if (watweak_isMessageRevoked(msg)) {
+            return hasVerifiedEdit;
+        }
+
+        if (hasVerifiedEdit) return YES;
+
+        // For non-deleted messages, check WhatsApp flags and edit timestamp
         if (watweak_safeGetBool(msg, @selector(isMessageEdited))) return YES;
         if (watweak_safeGetBool(msg, @selector(isEdited))) return YES;
         if (watweak_safeGetDate(msg, @selector(latestEditTimestamp)) != nil) return YES;
         if (watweak_safeGetDate(msg, @selector(lastEditTimestamp)) != nil) return YES;
-        if (watweak_safeGetDate(msg, @selector(latestEditReceivedTimestamp)) != nil) return YES;
-
-        NSString *sid = watweak_getStanzaIdFromMessage(msg);
-        if (sid && sid.length > 0) {
-            NSArray *chain = watweak_getEditChainForStanzaID(sid);
-            if (chain && chain.count > 1) return YES;
-            if (watweak_getOriginalTextForStanzaID(sid) != nil) return YES;
-        }
     } @catch (NSException *e) {}
     return NO;
 }
@@ -600,11 +644,15 @@ static BOOL watweak_isMessageEdited(id msg) {
 
         if (targetMessage) {
             sid = watweak_getStanzaIdFromMessage(targetMessage);
-            prevText = watweak_safeGetString(targetMessage, @selector(text));
+            prevText = watweak_extractText(targetMessage);
             origMsgDate = watweak_safeGetDate(targetMessage, @selector(messageDate));
         }
         if (!sid && stanzaID) {
             sid = (NSString *)stanzaID;
+        }
+
+        if ((!prevText || prevText.length == 0) && sid) {
+            prevText = watweak_getOriginalTextForStanzaID(sid);
         }
 
         if (sid && prevText && prevText.length > 0) {
@@ -620,10 +668,10 @@ static BOOL watweak_isMessageEdited(id msg) {
     @try {
         NSString *newText = nil;
         if (targetMessage) {
-            newText = watweak_safeGetString(targetMessage, @selector(text));
+            newText = watweak_extractText(targetMessage);
         }
         if ((!newText || newText.length == 0) && edit) {
-            newText = watweak_safeGetString(edit, @selector(text));
+            newText = watweak_extractText(edit);
         }
         if (sid && newText && newText.length > 0 && ![newText isEqualToString:prevText]) {
             watweak_recordEditForStanzaID(sid, newText, editDate ?: [NSDate date], NO);
@@ -647,7 +695,10 @@ static BOOL watweak_isMessageEdited(id msg) {
 
     @try {
         sid = watweak_getStanzaIdFromMessage(self);
-        prevText = watweak_safeGetString(self, @selector(text));
+        prevText = watweak_extractText(self);
+        if ((!prevText || prevText.length == 0) && sid) {
+            prevText = watweak_getOriginalTextForStanzaID(sid);
+        }
         msgDate = watweak_safeGetDate(self, @selector(messageDate));
         if (sid && prevText && prevText.length > 0) {
             watweak_saveOriginalTextForStanzaID(sid, prevText, now);
@@ -660,7 +711,7 @@ static BOOL watweak_isMessageEdited(id msg) {
     %orig;
 
     @try {
-        NSString *newText = watweak_safeGetString(self, @selector(text));
+        NSString *newText = watweak_extractText(self);
         if (sid && newText && newText.length > 0 && ![newText isEqualToString:prevText]) {
             watweak_recordEditForStanzaID(sid, newText, now, NO);
         }
@@ -877,8 +928,32 @@ static BOOL watweak_isMessageEdited(id msg) {
     }
     if (!message) return;
 
+    NSString *sid = watweak_getStanzaIdFromMessage(message);
+    NSString *currentText = watweak_extractText(message);
+
     BOOL isDel = watweak_isMessageRevoked(message);
     BOOL isEdit = watweak_isMessageEdited(message);
+
+    // If message is deleted, it is NOT edited unless it has verified multi-step edit data
+    if (isDel && isEdit) {
+        BOOL genuineEdit = NO;
+        if (sid && sid.length > 0) {
+            NSArray *chain = watweak_getEditChainForStanzaID(sid);
+            if (chain && chain.count > 1) {
+                genuineEdit = YES;
+            } else {
+                @synchronized(sWATweakEditedTexts) {
+                    if (sWATweakEditedTexts[sid] != nil) genuineEdit = YES;
+                }
+            }
+        }
+        if (!genuineEdit) isEdit = NO;
+    }
+
+    // Cache initial unedited text for all normal incoming/outgoing messages BEFORE any early return
+    if (!isEdit && sid && currentText && currentText.length > 0) {
+        watweak_cacheInitialTextForStanzaID(sid, currentText);
+    }
 
     UILabel *delBadge = (UILabel *)[self.contentView viewWithTag:998855];
     UILabel *editBadge = (UILabel *)[self.contentView viewWithTag:998856];
@@ -887,14 +962,6 @@ static BOOL watweak_isMessageEdited(id msg) {
         if (delBadge) delBadge.hidden = YES;
         if (editBadge) editBadge.hidden = YES;
         return;
-    }
-
-    NSString *sid = watweak_getStanzaIdFromMessage(message);
-    NSString *currentText = watweak_safeGetString(message, @selector(text));
-
-    // Lightweight in-memory cache of initial unedited text, NO heavy recording or disk persists in layout path
-    if (!isEdit && sid && currentText && currentText.length > 0) {
-        watweak_cacheInitialTextForStanzaID(sid, currentText);
     }
 
     CGRect bFrame = CGRectZero;
@@ -1010,10 +1077,21 @@ static BOOL watweak_isMessageEdited(id msg) {
             [editBadge addGestureRecognizer:tap];
         }
 
-        NSString *origText = sid ? watweak_getOriginalTextForStanzaID(sid) : nil;
-        if (!origText || origText.length == 0) {
-            origText = @"(Original message text was not captured during this session)";
+        NSString *origText = nil;
+        if (sid) {
+            @synchronized(sWATweakEditedTexts) {
+                origText = sWATweakEditedTexts[sid];
+            }
+            if (!origText || origText.length == 0) {
+                @synchronized(sWATweakOriginalTexts) {
+                    origText = sWATweakOriginalTexts[sid];
+                }
+                if (origText && origText.length > 0 && currentText && ![origText isEqualToString:currentText]) {
+                    watweak_saveOriginalTextForStanzaID(sid, origText, nil);
+                }
+            }
         }
+
         NSDate *origDate = watweak_safeGetDate(message, @selector(messageDate));
 
         NSDate *editDate = sid ? watweak_getEditDateForStanzaID(sid) : nil;
@@ -1028,6 +1106,23 @@ static BOOL watweak_isMessageEdited(id msg) {
         }
 
         NSArray *chain = sid ? watweak_getEditChainForStanzaID(sid) : nil;
+        if (sid && origText && origText.length > 0 && currentText && currentText.length > 0 && ![origText isEqualToString:currentText]) {
+            if (!chain || chain.count < 2) {
+                watweak_recordEditForStanzaID(sid, origText, origDate ?: [NSDate dateWithTimeInterval:-60 sinceDate:editDate], YES);
+                watweak_recordEditForStanzaID(sid, currentText, editDate, NO);
+                chain = watweak_getEditChainForStanzaID(sid);
+            } else {
+                NSDictionary *lastEntry = chain.lastObject;
+                if (lastEntry && ![lastEntry[@"text"] isEqualToString:currentText]) {
+                    watweak_recordEditForStanzaID(sid, currentText, editDate, NO);
+                    chain = watweak_getEditChainForStanzaID(sid);
+                }
+            }
+        }
+
+        if (!origText || origText.length == 0) {
+            origText = @"(Original message text was not captured during this session)";
+        }
 
         NSMutableDictionary *badgeData = [NSMutableDictionary dictionaryWithCapacity:6];
         if (origText) badgeData[@"origText"] = origText;
